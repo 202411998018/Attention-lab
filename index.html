@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f6f2">
+  <meta name="description" content="Attention Lab — 看见注意力，理解认知。交互式认知心理学实验平台。">
+  <title>Attention Lab — 看见注意力，理解认知</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="Attention Lab 首页"><span class="brand-mark">a.</span><span>ATTENTION <i>LAB</i></span></a>
+    <nav class="main-nav" aria-label="主导航">
+      <a href="#experiments">Experiments</a><a href="#approach">Our approach</a><a href="#science">The science</a>
+    </nav>
+    <a class="header-cta" href="#experiments">开始探索 <span>↗</span></a>
+    <button class="menu-toggle" aria-label="打开导航" aria-expanded="false">☰</button>
+  </header>
+
+  <main id="home">
+    <section class="hero section-shell">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> AN INTERACTIVE COGNITIVE SCIENCE LAB</p>
+        <h1>Build a clearer picture<br>of <em>attention.</em></h1>
+        <p class="hero-subtitle">注意力，如何改变我们看到的世界？</p>
+        <p class="hero-description">从空间线索到视觉搜索，从变化盲到眼动轨迹。通过经典心理学实验，探索注意力如何塑造我们的视觉经验。</p>
+        <div class="hero-actions"><a class="button button-dark" href="#experiments">探索实验 <span>↗</span></a><a class="text-link" href="#approach">了解实验室 <span>→</span></a></div>
+        <div class="hero-meta"><span class="meta-dot"></span> THREE CLASSIC PARADIGMS <span class="meta-divider">/</span> BEHAVIOR + GAZE</div>
+      </div>
+      <div class="hero-art" aria-label="三张表现空间注意、变化盲和视觉搜索的艺术卡片">
+        <div class="art-card art-card-left">
+          <span class="art-index">01 / ORIENT</span>
+          <svg viewBox="0 0 420 330" role="img" aria-label="空间线索示意图">
+            <rect width="420" height="330" fill="#dce8e3"/>
+            <path d="M0 230 Q90 170 170 225 T420 205 V330 H0Z" fill="#9db9ad"/>
+            <path d="M0 0 H420 V150 Q310 120 220 155 T0 130Z" fill="#e9eee5"/>
+            <path d="M40 70 H380" stroke="#879e95" stroke-dasharray="3 9" stroke-width="2"/>
+            <rect x="40" y="125" width="90" height="90" rx="10" fill="#f8f7f1" stroke="#78968b" stroke-width="2"/>
+            <rect x="290" y="125" width="90" height="90" rx="10" fill="#f8f7f1" stroke="#78968b" stroke-width="2"/>
+            <path d="M210 150 L210 205 M183 178 H237" stroke="#344c48" stroke-width="4" stroke-linecap="round"/>
+            <path d="M90 112 Q170 42 330 112" fill="none" stroke="#b67d56" stroke-width="3" stroke-dasharray="6 8"/>
+            <circle cx="330" cy="170" r="12" fill="#c47e57"/>
+            <circle cx="85" cy="55" r="5" fill="#a56d89"/>
+          </svg>
+          <span class="art-caption">THE SPACE WE ATTEND TO</span>
+        </div>
+        <div class="art-card art-card-right">
+          <span class="art-index">03 / SEARCH</span>
+          <svg viewBox="0 0 420 330" role="img" aria-label="视觉搜索示意图">
+            <rect width="420" height="330" fill="#e8e0d1"/>
+            <g fill="#435b67">
+              <path d="M70 85V125 M50 105H90"/><path d="M145 70V110 M125 90H165"/><path d="M230 85V125 M210 105H250"/>
+              <path d="M315 65V105 M295 85H335"/><path d="M90 180V220 M70 200H110"/><path d="M185 175V215 M165 195H205"/>
+              <path d="M275 180V220 M255 200H295"/><path d="M355 180V220 M335 200H375"/>
+            </g>
+            <g stroke="#c17e55" stroke-width="8" stroke-linecap="round"><path d="M145 245V285 M145 245L174 260"/></g>
+            <g stroke="#8da59b" stroke-width="8" stroke-linecap="round"><path d="M230 245V285 M230 245L259 260"/></g>
+            <circle cx="145" cy="265" r="35" fill="none" stroke="#c17e55" stroke-width="2" opacity=".5"/>
+          </svg>
+          <span class="art-caption">FINDING A SIGNAL IN THE SCENE</span>
+        </div>
+        <div class="art-card art-card-center">
+          <span class="art-index">02 / NOTICE</span>
+          <svg viewBox="0 0 420 420" role="img" aria-label="变化盲示意场景">
+            <rect width="420" height="420" fill="#d9d4c8"/>
+            <rect y="270" width="420" height="150" fill="#9caa9e"/>
+            <path d="M0 265 L75 150 L140 245 L225 100 L330 255 L420 170 V300 H0Z" fill="#879d99"/>
+            <path d="M0 300 Q90 270 170 315 T420 290 V420 H0Z" fill="#b7b09c"/>
+            <path d="M75 150 L105 205 L140 245 L115 250 L75 205 L45 250Z" fill="#f1ece0"/>
+            <circle cx="310" cy="292" r="22" fill="#b47d5d"/>
+            <path d="M310 314V365 M310 330L285 350 M310 330L335 350" stroke="#4d5b57" stroke-width="8" stroke-linecap="round"/>
+            <path d="M60 330 Q120 290 180 330" stroke="#e7e0d2" stroke-width="5" fill="none"/>
+            <circle cx="115" cy="320" r="5" fill="#d08a60"/>
+          </svg>
+          <span class="art-caption">WHAT CHANGES — AND WHAT WE MISS</span>
+        </div>
+        <div class="art-note">A closer look<br>at the mind <span>✳</span></div>
+      </div>
+    </section>
+
+    <section class="intro-strip">
+      <div><span class="eyebrow">THE ATTENTION QUESTION</span><p>We don't see everything.<br><em>We see what we attend to.</em></p></div>
+      <p class="intro-aside">Attention is not a camera passively recording the world. It is an active process of selection, prioritization, and interpretation.</p>
+    </section>
+
+    <section class="experiments section-shell" id="experiments">
+      <div class="section-heading"><div><p class="eyebrow">EXPLORE THE LAB</p><h2>Three ways to study<br><em>the attentive mind.</em></h2></div><p>体验经典认知实验，观察注意力如何影响我们的判断、搜索与知觉。</p></div>
+      <div class="experiment-grid">
+        <article class="experiment-card card-posner">
+          <div class="card-visual visual-posner"><span class="visual-label">SPATIAL ORIENTING</span><div class="posner-mini"><i></i><b>+</b><i class="lit"></i></div><span class="visual-number">01</span></div>
+          <div class="card-content"><div class="card-meta">WEEK 05–06 <span>·</span> 5–7 MIN</div><h3>空间线索实验</h3><p>注意力能否在眼睛不动的情况下，提前转向即将出现的目标？</p><button class="card-link" data-open="posner">了解实验 <span>↗</span></button></div>
+        </article>
+        <article class="experiment-card card-change">
+          <div class="card-visual visual-change"><span class="visual-label">CHANGE DETECTION</span><div class="change-art"><span></span><span></span><span></span><i></i></div><span class="visual-number">02</span></div>
+          <div class="card-content"><div class="card-meta">WEEK 05–08 <span>·</span> 5–7 MIN</div><h3>变化盲实验</h3><p>当场景发生变化时，为什么我们有时会错过眼前明显的信息？</p><button class="card-link" data-open="change">了解实验 <span>↗</span></button></div>
+        </article>
+        <article class="experiment-card card-search">
+          <div class="card-visual visual-search"><span class="visual-label">VISUAL SEARCH</span><div class="search-dots"><b>T</b><b>L</b><b>T</b><b>L</b><b>T</b><b>L</b><b>T</b><b>L</b><b>T</b></div><span class="visual-number">03</span></div>
+          <div class="card-content"><div class="card-meta">WEEK 06–08 <span>·</span> 5–7 MIN</div><h3>视觉搜索实验</h3><p>面对复杂视觉场景，我们如何快速找到目标，又需要付出多少注意资源？</p><button class="card-link" data-open="search">了解实验 <span>↗</span></button></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="approach-section" id="approach">
+      <div class="approach-inner section-shell">
+        <div><p class="eyebrow">MORE THAN AN EXPERIMENT</p><h2>From curiosity<br>to <em>evidence.</em></h2><p class="approach-lead">每一次按键、每一次注视，都可以成为理解认知过程的线索。</p></div>
+        <div class="approach-steps">
+          <div class="step"><span>01</span><div><h3>Discover</h3><p>了解经典理论与研究问题。</p></div><b>↗</b></div>
+          <div class="step"><span>02</span><div><h3>Experience</h3><p>参与实验，完成真实任务。</p></div><b>↗</b></div>
+          <div class="step"><span>03</span><div><h3>Explore</h3><p>从行为和眼动数据中发现规律。</p></div><b>↗</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="science-section section-shell" id="science">
+      <div class="section-heading"><div><p class="eyebrow">THE SCIENCE OF ATTENTION</p><h2>Look closer.<br><em>Think deeper.</em></h2></div><p>从经典范式出发，连接理论、实验与数据。</p></div>
+      <div class="science-grid">
+        <article><span class="science-index">01 / ORIENTING</span><h3>空间注意</h3><p>注意如何被空间线索引导？外周线索与中央符号线索是否产生不同效果？</p><span class="science-arrow">↗</span></article>
+        <article><span class="science-index">02 / AWARENESS</span><h3>变化觉察</h3><p>视觉场景中的变化为何容易被忽略？注意线索能否帮助我们发现变化？</p><span class="science-arrow">↗</span></article>
+        <article><span class="science-index">03 / SEARCH</span><h3>视觉搜索</h3><p>特征搜索与结合搜索有何不同？目标预览能否改变搜索效率？</p><span class="science-arrow">↗</span></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="about"><a class="brand" href="#home"><span class="brand-mark">a.</span><span>ATTENTION <i>LAB</i></span></a><p>看见注意力，理解认知。<br><small>Interactive Cognitive Science Laboratory</small></p><div><a href="#experiments">Experiments</a><a href="#science">The science</a><a href="README.md">Project notes</a></div><span class="footer-copy">© 2026 ATTENTION LAB</span></footer>
+
+  <div class="modal-backdrop" id="experiment-modal" aria-hidden="true">
+    <section class="experiment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" aria-label="关闭">×</button>
+      <p class="eyebrow" id="modal-kicker">EXPERIMENT OVERVIEW</p><h2 id="modal-title">实验标题</h2><p id="modal-description"></p>
+      <div class="modal-facts" id="modal-facts"></div>
+      <div class="modal-actions"><button class="button button-dark" id="start-experiment">开始体验 <span>↗</span></button><button class="button button-light" id="close-modal">稍后再试</button></div>
+    </section>
+  </div>
+
+  <div class="task-overlay" id="task-overlay" aria-hidden="true">
+    <div class="task-top"><span class="task-brand">ATTENTION LAB / <b id="task-name">EXPERIMENT</b></span><button id="exit-task" aria-label="退出实验">退出 ×</button></div>
+    <div class="task-progress"><span id="task-progress"></span></div>
+    <div class="task-stage" id="task-stage"></div>
+  </div>
+
+  <script src="vendor/webgazer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

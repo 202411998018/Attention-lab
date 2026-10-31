@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+.env
+.env.*
+*.log
+data/
+exports/
+participant-data/
+vendor/* 
+!vendor/README.md
