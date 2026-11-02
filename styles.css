@@ -31,19 +31,20 @@
 .cue-display{width:min(620px,94vw);gap:clamp(14px,4vw,48px)}
 .cue-center{width:52px;min-width:52px;min-height:64px;display:grid;place-items:center;line-height:1}
 .cue-center.cue-arrow{
-  width:104px;
-  min-width:104px;
-  height:86px;
+  width:auto;
+  min-width:42px;
+  height:auto;
+  padding:0;
   font-family:Arial,Helvetica,sans-serif;
-  font-size:76px;
+  font-size:78px;
   font-weight:900;
-  line-height:1;
-  color:#fff4d4;
-  background:#9b6046;
-  border:3px solid #f0cf91;
-  border-radius:16px;
-  box-shadow:0 0 0 7px rgba(240,207,145,.15),0 8px 24px rgba(0,0,0,.28);
-  text-shadow:0 2px 0 rgba(0,0,0,.22);
+  line-height:.9;
+  color:#f0cf9a;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  text-shadow:0 2px 0 rgba(0,0,0,.24);
 }
 .search-scatter{
   position:relative;
@@ -74,7 +75,18 @@
   .cue-display{gap:12px;width:96vw}
   .cue-box{width:78px}
   .cue-center{width:42px;min-width:42px}
-  .cue-center.cue-arrow{width:78px;min-width:78px;height:68px;font-size:60px}
+  .cue-center.cue-arrow{width:auto;min-width:38px;height:auto;font-size:64px}
   .search-scatter{height:clamp(230px,38vh,300px);width:94vw}
   .search-scatter .search-item{width:28px;height:34px;font-size:25px}
 }
+
+
+/* Keyboard-first operation and visible focus for every interactive control */
+.task-keyboard-hint{margin:22px 0 0!important;font-size:10px!important;color:#92a094!important;letter-spacing:.04em}
+.task-button:focus-visible,.task-top button:focus-visible,.modal-close:focus-visible,
+.card-link:focus-visible,.menu-toggle:focus-visible,.button:focus-visible,
+.eye-dot:focus-visible,input:focus-visible,a:focus-visible{
+  outline:3px solid #e1b77f;
+  outline-offset:4px;
+}
+.eye-dot{color:#26342d;font-size:10px;font-weight:800}
