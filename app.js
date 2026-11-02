@@ -378,7 +378,7 @@ function beginInstructions() {
       '<p>请在屏幕中的字母阵列里寻找<strong>红色 T</strong>。如果看到红色 T，按 F（存在）；如果没有看到，按 J（不存在）。</p>' +
       '<p>特征搜索中，目标主要通过颜色区别于干扰项；结合搜索中，目标需要同时结合颜色和形状才能与干扰项区分。</p>' +
       '<p>每轮阵列项目数量会变化。请尽快且准确地判断。</p>',
-      '<button class="task-button" id="instructions-next">开始练习</button>'
+      '<button class="task-button" id="instructions-next">开始练习（Enter）</button>'
     );
   } else {
     panel(
@@ -386,7 +386,7 @@ function beginInstructions() {
       '<p>屏幕会反复呈现两张面孔，中间短暂出现空屏。请观察两张面孔之间是否发生变化。</p>' +
       '<p>发现变化时按 Space；如果认为没有变化，按 N。发现变化后，再按数字键 1–4 选择部位。部分试次确实没有变化。</p>' +
       '<p>请不要猜测，尽可能准确地报告。</p>',
-      '<button class="task-button" id="instructions-next">开始练习</button>'
+      '<button class="task-button" id="instructions-next">开始练习（Enter）</button>'
     );
   }
   $("#instructions-next").onclick = beginPractice;
@@ -493,7 +493,7 @@ async function runNext() {
       panel(
         "练习完成",
         '<p>你已经完成练习。接下来进入正式实验。正式试次的数据会与练习试次分开标记。</p>',
-        '<button class="task-button" id="formal-start">开始正式实验</button>'
+        '<button class="task-button" id="formal-start">开始正式实验（Enter）</button>'
       );
       $("#formal-start").onclick = beginFormal;
     } else {
@@ -793,9 +793,9 @@ function faceStimulusMarkup() {
   return '<div class="face-flicker-wrap"><div id="face-flicker-frame" class="face-flicker-frame">' +
     '<img id="face-flicker-image" alt="面孔刺激" draggable="false"></div>' +
     '<div class="face-response-buttons">' +
-    '<button class="task-button" id="face-found">发现变化（空格）</button>' +
+    '<button class="task-button" id="face-found">发现变化（Space）</button>' +
     '<button class="task-button secondary" id="face-no-change">没有变化（N）</button>' +
-    '</div><p class="task-muted">面孔交替呈现，中间会短暂空屏。每轮最长 12 秒。</p></div>';
+    '</div><p class="task-muted">键盘操作：Space = 发现变化 · N = 没有变化。每轮最长 12 秒。</p></div>';
 }
 
 async function runFaceTrial(trial, epoch) {
@@ -873,10 +873,14 @@ async function runFaceTrial(trial, epoch) {
     taskStage.innerHTML =
       '<div class="task-panel"><p class="task-muted">CHANGE DETECTED</p><h2>你发现了变化</h2>' +
       '<p>请选择你认为发生变化的面部部位。</p>' +
+      '<p>按数字键 1–4 选择，也可以使用 Tab + Enter。</p>' +
       '<div class="task-choice face-feature-choices">' +
-      FACE_PAIRS.map((pair) => '<button class="task-button secondary face-feature-choice" data-feature="' +
-        escapeHtml(pair.feature) + '">' + escapeHtml(pair.feature) + '</button>').join("") +
+      FACE_PAIRS.map((pair, index) => '<button class="task-button secondary face-feature-choice" data-feature-index="' +
+        (index + 1) + '" data-feature="' + escapeHtml(pair.feature) + '">' +
+        (index + 1) + " · " + escapeHtml(pair.feature) + '</button>').join("") +
       '</div></div>';
+    const firstFeatureChoice = taskStage.querySelector("[data-feature]");
+    if (firstFeatureChoice) firstFeatureChoice.focus();
     let chosenFeature = "";
     const choiceStart = performance.now();
     await waitForTaskAction((resolve) => {
@@ -946,7 +950,7 @@ async function showPracticeFeedback(correct) {
   panel(
     correct ? "判断正确" : "再留意一下",
     '<p>' + (correct ? "很好，继续保持。" : "练习阶段可以继续熟悉刺激和按键方式。") + '</p>',
-    '<button class="task-button" id="practice-continue">继续</button>'
+    '<button class="task-button" id="practice-continue">继续（Enter）</button>'
   );
   await waitForTaskAction((resolve) => {
     $("#practice-continue").onclick = resolve;
@@ -1001,10 +1005,11 @@ function finishTask() {
     '<div class="result-line"><span>本次眼动样本</span><b>' + sessionGaze.length + '</b></div>' +
     '</div>' +
     '<p class="task-muted">数据保存在当前浏览器的本地存储中。清除浏览器数据或更换设备可能导致数据丢失，请及时下载备份。</p>' + storageWarningHtml,
-    '<div class="task-choice"><button class="task-button" id="download-session">下载本次试次 CSV</button>' +
-    '<button class="task-button secondary" id="download-gaze">下载本次眼动 CSV</button>' +
-    '<button class="task-button secondary" id="download-all">下载本机累计数据 CSV</button>' +
-    '<button class="task-button secondary" id="finish-close">返回网站</button></div>'
+    '<p class="task-muted">键盘快捷键：1 下载本次试次 · 2 下载眼动数据 · 3 下载累计数据 · 4 返回网站</p>' +
+    '<div class="task-choice"><button class="task-button" id="download-session">1 · 下载本次试次 CSV</button>' +
+    '<button class="task-button secondary" id="download-gaze">2 · 下载本次眼动 CSV</button>' +
+    '<button class="task-button secondary" id="download-all">3 · 下载本机累计数据 CSV</button>' +
+    '<button class="task-button secondary" id="finish-close">4 · 返回网站</button></div>'
   );
   $("#download-session").onclick = () => downloadCSV(sessionRows, selected.id + "-" + participant + "-trials.csv");
   $("#download-gaze").onclick = () => {
