@@ -1,35 +1,867 @@
-const experiments={
- posner:{id:"posner",name:"Posner 空间线索实验",english:"POSNER SPATIAL CUEING",description:"研究空间线索如何引导注意。比较外周线索与中央符号线索，以及有效、无效和中性提示对目标定位反应的影响。",facts:["空间注意","Valid / Invalid / Neutral","可选眼动追踪"],duration:"约 6 分钟"},
- change:{id:"change",name:"变化盲实验",english:"CHANGE BLINDNESS",description:"通过 Flicker 范式观察视觉变化检测。比较有效线索、无效线索和无提示条件下，参与者发现变化所需的时间。",facts:["Flicker 范式","空间提示","变化检测"],duration:"约 5 分钟"},
- search:{id:"search",name:"视觉搜索实验",english:"VISUAL SEARCH",description:"比较特征搜索与结合搜索，并探索目标预览是否能够改善搜索效率。",facts:["Feature Search","Conjunction Search","目标预览"],duration:"约 5 分钟"}
+/* Attention Lab experiment engine
+ * Three browser-based attention paradigms with balanced trial generation,
+ * response-time capture, trial-level local persistence, and CSV export.
+ */
+"use strict";
+
+const EXPERIMENTS = {
+  posner: {
+    id: "posner",
+    name: "Posner 空间线索实验",
+    english: "POSNER SPATIAL CUEING",
+    description: "比较外周闪烁线索与中央方向箭头如何引导空间注意，并考察有效、无效和中性线索及线索—目标间隔的影响。",
+    facts: ["外源性 / 内源性线索", "有效 / 无效 / 中性", "反应时与正确率"],
+    duration: "约 6–8 分钟"
+  },
+  change: {
+    id: "change",
+    name: "面孔变化检测实验",
+    english: "FACE FLICKER CHANGE DETECTION",
+    description: "通过 A—空屏—B—空屏的闪烁范式，检测面孔注视方向、嘴角、眉毛、鼻子和发型的变化。",
+    facts: ["5 类面部特征变化", "无变化 Catch Trials", "变化检测与部位判断"],
+    duration: "约 5–8 分钟"
+  },
+  search: {
+    id: "search",
+    name: "视觉搜索与特征整合实验",
+    english: "VISUAL SEARCH / FEATURE INTEGRATION",
+    description: "比较单一特征搜索与颜色—形状结合搜索，操纵搜索集合大小和目标有无，检验搜索效率随项目数量的变化。",
+    facts: ["Feature Search", "Conjunction Search", "集合大小 8 / 16 / 24"],
+    duration: "约 6–8 分钟"
+  }
 };
-const modal=document.querySelector("#experiment-modal"),taskOverlay=document.querySelector("#task-overlay"),taskStage=document.querySelector("#task-stage");
-let selected=null,participant="P"+Math.random().toString(36).slice(2,7).toUpperCase(),rows=[],trialIndex=0,trialList=[],trialStart=0,responseHandler=null,eyeEnabled=false,gazeSamples=[],gazeListener=null;
-const $=s=>document.querySelector(s);
-document.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openModal(b.dataset.open)));
-function openModal(id){selected=experiments[id];$("#modal-kicker").textContent=selected.english;$("#modal-title").textContent=selected.name;$("#modal-description").textContent=selected.description;$("#modal-facts").innerHTML=selected.facts.map(x=>"<span>"+x+"</span>").join("")+"<span>"+selected.duration+"</span>";modal.classList.add("open");modal.setAttribute("aria-hidden","false")}
-function closeModal(){modal.classList.remove("open");modal.setAttribute("aria-hidden","true")}
-$(".modal-close").onclick=closeModal;$("#close-modal").onclick=closeModal;modal.addEventListener("click",e=>{if(e.target===modal)closeModal()});
-$(".menu-toggle").onclick=()=>{const nav=$(".main-nav"),open=nav.classList.toggle("mobile-open");$(".menu-toggle").setAttribute("aria-expanded",String(open))};
-document.querySelectorAll(".main-nav a").forEach(a=>a.addEventListener("click",()=>$(".main-nav").classList.remove("mobile-open")));
-$("#start-experiment").onclick=()=>{closeModal();showSetup(selected.id)};
-function panel(title,body,buttons=""){taskStage.innerHTML='<div class="task-panel"><p class="task-muted">ATTENTION LAB · '+(selected?.english||"EXPERIMENT")+'</p><h2>'+title+'</h2>'+body+buttons+'</div>'}
-function showSetup(id){selected=experiments[id];taskOverlay.classList.add("open");taskOverlay.setAttribute("aria-hidden","false");$("#task-name").textContent=selected.english;$("#task-progress").style.width="0";panel("准备好开始了吗？",'<p>本实验将记录匿名试次数据，包括反应选择和反应时间。请在安静环境中使用电脑完成。</p><label class="task-muted">匿名参与者编号</label><br><input class="participant-input" id="participant-id" maxlength="20" value="'+participant+'" aria-label="参与者编号"><p><label><input type="checkbox" id="consent"> 我已阅读说明并同意以匿名方式参与本次实验。</label></p><div class="eye-status" id="eye-status">眼动追踪为可选功能；可在设备检查时选择启用。</div>', '<div class="task-choice"><button class="task-button" id="setup-next">继续</button><button class="task-button secondary" id="task-cancel">返回</button></div>');$("#setup-next").onclick=()=>{if(!$("#consent").checked){alert("请先确认知情同意。");return}participant=$("#participant-id").value.trim()||participant;eyeSetup()};$("#task-cancel").onclick=exitTask}
-function eyeSetup(){const available=!!window.webgazer;panel("眼动追踪设备检查",'<p>你可以选择启用摄像头注视估计。摄像头视频不会由本页面保存；也可以跳过，直接完成行为实验。</p><div class="eye-status">'+(available?"检测到本地 WebGazer 资源。":"尚未检测到 vendor/webgazer.js，本次可继续进行行为实验。")+'</div>', '<div class="task-choice"><button class="task-button" id="eye-on" '+(!available?'disabled':'')+'>启用并校准</button><button class="task-button secondary" id="eye-off">跳过眼动</button></div>');$("#eye-on").onclick=()=>calibrateEye();$("#eye-off").onclick=beginPractice}
-async function calibrateEye(){if(!window.webgazer){beginPractice();return}try{await window.webgazer.setGazeListener((data,t)=>{if(data)gazeSamples.push({x:data.x,y:data.y,timestamp:performance.now(),trial:trialIndex+1})}).begin();eyeEnabled=true;let count=0;const points=[];for(let y of [.15,.5,.85])for(let x of [.15,.5,.85])points.push([x,y]);panel("九点校准",'<p>依次点击九个圆点，并尽量注视每个圆点。完成后进入练习。</p><div class="eye-calibration">'+points.map((p,i)=>'<button class="eye-dot" data-dot="'+i+'" aria-label="校准点 '+(i+1)+'"></button>').join("")+'</div><div class="eye-status" id="cal-count">已完成 0 / 9</div>');document.querySelectorAll(".eye-dot").forEach((dot,i)=>dot.onclick=()=>{count++;try{window.webgazer.recordScreenPosition(window.innerWidth*points[i][0],window.innerHeight*points[i][1],"click")}catch(e){}dot.style.opacity=".25";$("#cal-count").textContent="已完成 "+count+" / 9";if(count===9)setTimeout(beginPractice,500)})}catch(e){eyeEnabled=false;panel("眼动追踪暂不可用","<p>设备或权限未能完成初始化。你仍然可以继续完成行为实验。</p>",'<button class="task-button" id="continue-no-eye">继续</button>');$("#continue-no-eye").onclick=beginPractice}}
-function makeTrials(id,practice=false){let a=[];if(id==="posner"){const conditions=["外周有效","外周无效","外周中性","中央有效","中央无效","中央中性"];conditions.forEach(c=>{for(let i=0;i<(practice?1:6);i++)a.push({condition:c,target:Math.random()<.5?"左":"右",soa:Math.random()<.5?250:600})})}else if(id==="change"){["有效提示","无效提示","无提示"].forEach(c=>{for(let i=0;i<(practice?1:6);i++)a.push({condition:c,changed:Math.random()<.85,location:Math.floor(Math.random()*4)})})}else{["特征搜索","结合搜索","结合搜索+目标预览"].forEach(c=>{for(let n of [8,16])for(let i=0;i<(practice?1:4);i++)a.push({condition:c,setSize:n,present:Math.random()<.5})})}return shuffle(a)}
-function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function beginPractice(){trialList=makeTrials(selected.id,true);trialIndex=0;rows=[];runNext(true)}
-function beginFormal(){trialList=makeTrials(selected.id,false);trialIndex=0;rows=[];runNext(false)}
-function runNext(practice=false){if(trialIndex>=trialList.length){if(practice){panel("练习完成",'<p>你已经熟悉任务操作。接下来进入正式实验，请尽量又快又准确地完成判断。</p>','<button class="task-button" id="formal-start">开始正式实验</button>');$("#formal-start").onclick=beginFormal}else finishTask();return}$("#task-progress").style.width=(trialIndex/trialList.length*100)+"%";const t=trialList[trialIndex];if(selected.id==="posner")runPosner(t,practice);if(selected.id==="change")runChange(t,practice);if(selected.id==="search")runSearch(t,practice)}
-function wait(ms){return new Promise(r=>setTimeout(r,ms))}
-async function runPosner(t,practice){taskStage.innerHTML='<div class="task-panel"><p class="task-muted">请注视中央十字</p><div class="stimulus-row"><div class="stimulus-box" id="left-box">□</div><div class="stimulus-center">+</div><div class="stimulus-box" id="right-box">□</div></div><p class="task-muted">目标出现后按 A（左）或 L（右）</p></div>';await wait(500);let cue=t.condition.includes("无效")?(t.target==="左"?"右":"左"):t.condition.includes("有效")?t.target:"中性";if(cue==="左")$("#left-box").style.borderColor="#d1a77d";if(cue==="右")$("#right-box").style.borderColor="#d1a77d";if(cue==="中性"){ $("#left-box").style.borderColor="#d1a77d";$("#right-box").style.borderColor="#d1a77d"}await wait(150);await wait(t.soa);const target=t.target==="左"?$("#left-box"):$("#right-box");target.classList.add("target");target.textContent="●";collectResponse({condition:t.condition,target:t.target,soa:t.soa},practice,["a","l"],k=>k==="a"?"左":"右")}
-async function runChange(t,practice){const scenes=(changed)=>'<svg class="scene-svg" viewBox="0 0 500 300"><rect width="500" height="300" fill="#d9d7c9"/><path d="M0 190 L95 70 L180 190 L280 45 L400 190 L500 110 V300 H0Z" fill="#91a69a"/><rect y="220" width="500" height="80" fill="#c2ad8e"/><circle cx="'+(t.location%2?365:135)+'" cy="'+(t.location>1?160:235)+'" r="24" fill="'+(changed?"#c17e5c":"#e8e3d7")+'"/><path d="M70 235 L110 185 L150 235" fill="none" stroke="#f3eee1" stroke-width="8"/></svg>';panel("请观察场景变化",'<p>两幅场景将交替出现。发现变化时点击下方按钮；如果认为没有变化，请选择“没有变化”。</p><div id="scene-holder"></div>','<div class="task-choice"><button class="task-button" id="found-change">发现变化</button><button class="task-button secondary" id="no-change">没有变化</button></div>');const holder=$("#scene-holder");let phase=0;const show=()=>{holder.innerHTML=phase%2===0?scenes(false):scenes(t.changed);phase++};show();trialStart=performance.now();const flicker=setInterval(show,450);const done=answer=>{clearInterval(flicker);const correct=answer===t.changed;record({condition:t.condition,changed:t.changed,answer,correct,rt:performance.now()-trialStart,practice});trialIndex++;runNext(practice)};$("#found-change").onclick=()=>done(true);$("#no-change").onclick=()=>done(false)}
-function runSearch(t,practice){let items=[];for(let i=0;i<t.setSize;i++)items.push({char:t.condition==="特征搜索"?"T":(Math.random()<.5?"T":"L"),color:t.condition==="特征搜索"?"#c17e5c":(Math.random()<.5?"#c17e5c":"#91a69a")});if(t.present){let i=Math.floor(Math.random()*items.length);items[i]={char:"T",color:"#c17e5c",target:true}}if(t.condition!=="特征搜索"&&t.present){items=items.map(x=>x.target?x:{char:Math.random()<.5?"T":"L",color:Math.random()<.5?"#c17e5c":"#91a69a"})}panel("找到目标了吗？",'<p>寻找红色 T。按 F 表示存在，按 J 表示不存在。</p><div class="search-grid">'+items.map(x=>'<span class="search-item" style="color:'+x.color+'">'+x.char+'</span>').join("")+'</div><p class="task-muted">SET SIZE · '+t.setSize+'</p>');trialStart=performance.now();collectResponse({condition:t.condition,setSize:t.setSize,present:t.present},practice,["f","j"],k=>k==="f")}
-function collectResponse(meta,practice,keys,transform){trialStart=performance.now();const handler=e=>{const k=e.key.toLowerCase();if(!keys.includes(k))return;window.removeEventListener("keydown",handler);const answer=transform(k),correct=selected.id==="posner"?answer===meta.target:selected.id==="search"?answer===meta.present:undefined;record({...meta,answer,correct,rt:performance.now()-trialStart,practice});trialIndex++;if(practice&&correct===false){panel("再试一次",'<p>这次没有匹配目标位置，请继续熟悉按键。</p>','<button class="task-button" id="retry">继续</button>');$("#retry").onclick=()=>runNext(true)}else runNext(practice)};window.addEventListener("keydown",handler)}
-function record(r){if(!r.practice)rows.push({participant,experiment:selected.id,trial:rows.length+1,...r,timestamp:new Date().toISOString(),eye_tracking:eyeEnabled})}
-function finishTask(){if(window.webgazer&&eyeEnabled){try{window.webgazer.pause()}catch(e){}}const valid=rows.filter(r=>r.correct!==undefined),accuracy=valid.length?valid.filter(r=>r.correct).length/valid.length*100:0,rt=valid.filter(r=>r.correct).map(r=>r.rt).sort((a,b)=>a-b),median=rt.length?rt[Math.floor(rt.length/2)]:null;$("#task-progress").style.width="100%";panel("实验完成",'<p>感谢参与。以下是本次实验的初步结果，正式研究分析仍需结合更多参与者的数据。</p><div class="result-box"><div class="result-line"><span>参与者编号</span><b>'+participant+'</b></div><div class="result-line"><span>有效记录试次</span><b>'+rows.length+'</b></div><div class="result-line"><span>正确率</span><b>'+accuracy.toFixed(1)+'%</b></div><div class="result-line"><span>正确试次中位反应时</span><b>'+(median?Math.round(median)+" ms":"—")+'</b></div><div class="result-line"><span>眼动追踪</span><b>'+(eyeEnabled?"已启用":"未启用")+'</b></div></div><p class="task-muted">本地保存的数据可在结果页面导出 CSV。</p>','<div class="task-choice"><button class="task-button" id="download-session">下载本次数据 CSV</button><button class="task-button secondary" id="finish-close">返回网站</button></div>');$("#download-session").onclick=()=>downloadCSV(rows,selected.id+"-"+participant+".csv");$("#finish-close").onclick=()=>exitTask();saveLocal(rows)}
-function saveLocal(data){const all=JSON.parse(localStorage.getItem("attentionLabData")||"[]");localStorage.setItem("attentionLabData",JSON.stringify(all.concat(data)));localStorage.setItem("attentionLabGaze",JSON.stringify(gazeSamples))}
-function downloadCSV(data,name){if(!data.length){alert("暂无可导出的正式试次数据。");return}const keys=[...new Set(data.flatMap(x=>Object.keys(x)))],csv=[keys.join(","),...data.map(r=>keys.map(k=>JSON.stringify(r[k]??"")).join(","))].join("\n");const a=document.createElement("a"),url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
-function exitTask(){if(window.webgazer&&eyeEnabled){try{window.webgazer.end()}catch(e){}}taskOverlay.classList.remove("open");taskOverlay.setAttribute("aria-hidden","true");eyeEnabled=false;gazeSamples=[];window.removeEventListener("keydown",responseHandler)}
-$("#exit-task").onclick=()=>{if(confirm("退出将结束本次实验。已记录的正式试次会保留在本地。")){saveLocal(rows);exitTask()}}
+
+const STORAGE_TRIALS = "attentionLabData";
+const STORAGE_GAZE = "attentionLabGaze";
+const STORAGE_SESSIONS = "attentionLabSessions";
+const FACE_BASE = "assets/face-change-stimuli/";
+const FACE_PAIRS = [
+  { feature: "注视方向", key: "gaze", a: "01_gaze_left.svg", b: "02_gaze_right.svg" },
+  { feature: "嘴角", key: "mouth", a: "03_mouth_neutral.svg", b: "04_mouth_smile.svg" },
+  { feature: "眉毛", key: "brows", a: "05_brows_flat.svg", b: "06_brows_raised.svg" },
+  { feature: "鼻子", key: "nose", a: "07_nose_normal.svg", b: "08_nose_wide.svg" },
+  { feature: "发型", key: "hair", a: "09_hair_short.svg", b: "10_hair_bangs.svg" }
+];
+
+const $ = (selector) => document.querySelector(selector);
+const modal = $("#experiment-modal");
+const taskOverlay = $("#task-overlay");
+const taskStage = $("#task-stage");
+let selected = null;
+let participant = "P" + Math.random().toString(36).slice(2, 7).toUpperCase();
+let sessionId = "";
+let sessionRows = [];
+let sessionGaze = [];
+let trialList = [];
+let trialIndex = 0;
+let phase = "practice";
+let active = false;
+let eyeEnabled = false;
+let eyeStarted = false;
+let currentTrialContext = null;
+let sessionStartIso = "";
+let sessionWarnings = [];
+
+document.querySelectorAll("[data-open]").forEach((button) => {
+  button.addEventListener("click", () => openModal(button.dataset.open));
+});
+
+function openModal(id) {
+  selected = EXPERIMENTS[id];
+  if (!selected) return;
+  $("#modal-kicker").textContent = selected.english;
+  $("#modal-title").textContent = selected.name;
+  $("#modal-description").textContent = selected.description;
+  $("#modal-facts").innerHTML = selected.facts.map((item) => "<span>" + escapeHtml(item) + "</span>").join("") +
+    "<span>" + escapeHtml(selected.duration) + "</span>";
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeModal() {
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+$(".modal-close").onclick = closeModal;
+$("#close-modal").onclick = closeModal;
+modal.addEventListener("click", (event) => {
+  if (event.target === modal) closeModal();
+});
+$(".menu-toggle").onclick = () => {
+  const nav = $(".main-nav");
+  const isOpen = nav.classList.toggle("mobile-open");
+  $(".menu-toggle").setAttribute("aria-expanded", String(isOpen));
+};
+document.querySelectorAll(".main-nav a").forEach((link) => {
+  link.addEventListener("click", () => $(".main-nav").classList.remove("mobile-open"));
+});
+$("#start-experiment").onclick = () => {
+  closeModal();
+  showSetup(selected.id);
+};
+$("#exit-task").onclick = () => {
+  if (confirm("确定退出本次实验吗？已经完成的试次会保留在本机；当前未完成试次不会计入分析。")) {
+    stopEyeTracking();
+    active = false;
+    exitTask();
+  }
+};
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[character]);
+}
+
+function panel(title, body, buttons) {
+  taskStage.innerHTML =
+    '<div class="task-panel"><p class="task-muted">ATTENTION LAB · ' +
+    escapeHtml(selected ? selected.english : "EXPERIMENT") +
+    '</p><h2>' + title + '</h2>' + body + (buttons || "") + "</div>";
+}
+
+function showSetup(id) {
+  selected = EXPERIMENTS[id];
+  if (!selected) return;
+  taskOverlay.classList.add("open");
+  taskOverlay.setAttribute("aria-hidden", "false");
+  $("#task-name").textContent = selected.english;
+  $("#task-progress").style.width = "0%";
+  panel(
+    "实验参与与设备检查",
+    '<p>本实验会记录匿名参与者编号、每个试次的刺激条件、按键反应、正确与否及反应时间。数据仅保存在当前浏览器，实验结束后可下载 CSV。</p>' +
+    '<label class="task-muted" for="participant-id">匿名参与者编号（请勿填写姓名或学号）</label><br>' +
+    '<input class="participant-input" id="participant-id" maxlength="24" value="' + escapeHtml(participant) + '">' +
+    '<p><label><input type="checkbox" id="consent"> 我已阅读说明，并同意以匿名方式参与本次实验。</label></p>' +
+    '<div class="eye-status">眼动追踪为可选探索功能；若本地 WebGazer 文件未安装，行为实验仍可正常进行。</div>',
+    '<div class="task-choice"><button class="task-button" id="setup-next">继续</button><button class="task-button secondary" id="task-cancel">返回</button></div>'
+  );
+  $("#setup-next").onclick = () => {
+    if (!$("#consent").checked) {
+      alert("请先确认知情同意。");
+      return;
+    }
+    participant = $("#participant-id").value.trim() || participant;
+    startNewSession();
+    eyeSetup();
+  };
+  $("#task-cancel").onclick = exitTask;
+}
+
+function makeId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+  return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+
+function readStoredArray(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function writeStoredArray(key, values) {
+  try {
+    localStorage.setItem(key, JSON.stringify(values));
+    return true;
+  } catch (error) {
+    sessionWarnings.push("浏览器本地存储失败：" + String(error && error.message || error));
+    return false;
+  }
+}
+
+function startNewSession() {
+  sessionId = makeId();
+  sessionRows = [];
+  sessionGaze = [];
+  sessionWarnings = [];
+  sessionStartIso = new Date().toISOString();
+  const sessions = readStoredArray(STORAGE_SESSIONS);
+  sessions.push({
+    session_id: sessionId,
+    participant,
+    experiment: selected.id,
+    started_at: sessionStartIso,
+    status: "in_progress"
+  });
+  writeStoredArray(STORAGE_SESSIONS, sessions);
+}
+
+function eyeSetup() {
+  const available = !!(window.webgazer && typeof window.webgazer.begin === "function");
+  if (!available) {
+    panel(
+      "行为实验可正常进行",
+      '<p>当前仓库没有安装本地 WebGazer 文件，因此本次无法启动摄像头眼动追踪。三个行为实验和试次数据记录不受影响。</p>' +
+      '<div class="eye-status">眼动状态：未启用（本次不会生成眼动数据）。</div>',
+      '<button class="task-button" id="eye-skip">进入实验说明</button>'
+    );
+    $("#eye-skip").onclick = beginInstructions;
+    return;
+  }
+  panel(
+    "是否启用眼动追踪？",
+    '<p>如果设备具有摄像头且浏览器允许访问，可以启用基于摄像头的注视估计。眼动数据仅保存在本机，精度需要在正式使用前单独验证。</p>',
+    '<div class="task-choice"><button class="task-button" id="eye-enable">启用并校准</button><button class="task-button secondary" id="eye-skip">跳过</button></div>'
+  );
+  $("#eye-enable").onclick = startEyeCalibration;
+  $("#eye-skip").onclick = beginInstructions;
+}
+
+async function startEyeCalibration() {
+  try {
+    await window.webgazer.begin();
+    eyeEnabled = true;
+    eyeStarted = true;
+    window.webgazer.setGazeListener((data) => {
+      if (!data || !active || !currentTrialContext) return;
+      sessionGaze.push({
+        session_id: sessionId,
+        participant,
+        experiment: selected.id,
+        trial_number: currentTrialContext.trial_number,
+        phase: currentTrialContext.phase,
+        x: Number(data.x),
+        y: Number(data.y),
+        timestamp: new Date().toISOString(),
+        elapsed_ms: Math.round(performance.now() - currentTrialContext.started_perf)
+      });
+    });
+    const points = [];
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) points.push([(col + 1) / 4, (row + 1) / 4]);
+    }
+    let completed = 0;
+    panel(
+      "九点点击校准",
+      '<p>依次点击九个圆点，并尽量注视圆点位置。该步骤仅为探索性校准，不代表眼动精度已经通过验证。</p>' +
+      '<div class="eye-calibration">' + points.map((_, index) =>
+        '<button class="eye-dot" data-eye-dot="' + index + '" aria-label="校准点 ' + (index + 1) + '"></button>'
+      ).join("") + '</div><div class="eye-status" id="eye-count">已完成 0 / 9</div>'
+    );
+    document.querySelectorAll("[data-eye-dot]").forEach((dot, index) => {
+      dot.onclick = () => {
+        const point = points[index];
+        try {
+          if (window.webgazer.recordScreenPosition) {
+            window.webgazer.recordScreenPosition(window.innerWidth * point[0], window.innerHeight * point[1], "click");
+          }
+        } catch (_) {}
+        dot.disabled = true;
+        dot.style.opacity = ".25";
+        completed += 1;
+        $("#eye-count").textContent = "已完成 " + completed + " / 9";
+        if (completed === 9) setTimeout(beginInstructions, 500);
+      };
+    });
+  } catch (error) {
+    eyeEnabled = false;
+    eyeStarted = false;
+    panel(
+      "眼动初始化失败",
+      '<p>摄像头权限或眼动模块初始化失败。可以跳过眼动追踪，继续完成行为实验。</p>',
+      '<button class="task-button" id="eye-failed-continue">继续</button>'
+    );
+    $("#eye-failed-continue").onclick = beginInstructions;
+  }
+}
+
+function stopEyeTracking() {
+  if (eyeStarted && window.webgazer) {
+    try {
+      if (typeof window.webgazer.pause === "function") window.webgazer.pause();
+      if (typeof window.webgazer.end === "function") window.webgazer.end();
+    } catch (_) {}
+  }
+  eyeStarted = false;
+}
+
+function beginInstructions() {
+  active = true;
+  currentTrialContext = null;
+  if (selected.id === "posner") {
+    panel(
+      "Posner 空间线索任务",
+      '<p>请始终尽量注视屏幕中央的“+”。左右方框中会有一个目标圆点出现。目标出现后，请尽快判断它在左侧还是右侧。</p>' +
+      '<p>按键：A = 左侧；L = 右侧。线索可能出现在外围方框，也可能以中央箭头形式出现；有时线索方向不指向目标。</p>' +
+      '<p>请尽量保持头部稳定、眼睛注视中央，并兼顾速度与准确性。</p>',
+      '<button class="task-button" id="instructions-next">开始练习</button>'
+    );
+  } else if (selected.id === "search") {
+    panel(
+      "视觉搜索任务",
+      '<p>请在屏幕中的字母阵列里寻找<strong>红色 T</strong>。如果看到红色 T，按 F（存在）；如果没有看到，按 J（不存在）。</p>' +
+      '<p>特征搜索中，目标主要通过颜色区别于干扰项；结合搜索中，目标需要同时结合颜色和形状才能与干扰项区分。</p>' +
+      '<p>每轮阵列项目数量会变化。请尽快且准确地判断。</p>',
+      '<button class="task-button" id="instructions-next">开始练习</button>'
+    );
+  } else {
+    panel(
+      "面孔变化检测任务",
+      '<p>屏幕会反复呈现两张面孔，中间短暂出现空屏。请观察两张面孔之间是否发生变化。</p>' +
+      '<p>发现变化时点击“发现变化”，随后选择发生变化的部位；如果认为没有变化，点击“没有变化”。部分试次确实没有变化。</p>' +
+      '<p>请不要猜测，尽可能准确地报告。</p>',
+      '<button class="task-button" id="instructions-next">开始练习</button>'
+    );
+  }
+  $("#instructions-next").onclick = beginPractice;
+}
+
+function shuffle(array) {
+  const copy = array.slice();
+  for (let index = copy.length - 1; index > 0; index--) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swap]] = [copy[swap], copy[index]];
+  }
+  return copy;
+}
+
+function makePosnerTrials(repetitions) {
+  const trials = [];
+  const soas = [200, 600];
+  ["外周线索", "中央箭头"].forEach((cueType) => {
+    ["有效", "无效", "中性"].forEach((validity) => {
+      soas.forEach((soa) => {
+        for (let repeat = 0; repeat < repetitions; repeat++) {
+          const targetSide = repeat % 2 === 0 ? "左" : "右";
+          const cueSide = validity === "中性" ? "中性" : (validity === "有效" ? targetSide : (targetSide === "左" ? "右" : "左"));
+          trials.push({
+            cue_type: cueType,
+            validity,
+            soa_ms: soa,
+            target_side: targetSide,
+            cue_side: cueSide
+          });
+        }
+      });
+    });
+  });
+  return shuffle(trials);
+}
+
+function makeSearchTrials(repetitions) {
+  const trials = [];
+  ["特征搜索", "结合搜索"].forEach((searchType) => {
+    [8, 16, 24].forEach((setSize) => {
+      [true, false].forEach((targetPresent) => {
+        for (let repeat = 0; repeat < repetitions; repeat++) {
+          trials.push({ search_type: searchType, set_size: setSize, target_present: targetPresent });
+        }
+      });
+    });
+  });
+  return shuffle(trials);
+}
+
+function makeFaceTrials(repetitions) {
+  const trials = [];
+  FACE_PAIRS.forEach((pair) => {
+    for (let repeat = 0; repeat < repetitions; repeat++) {
+      const reverse = repeat % 2 === 1;
+      trials.push({
+        changed: true,
+        feature: pair.feature,
+        file_a: reverse ? pair.b : pair.a,
+        file_b: reverse ? pair.a : pair.b,
+        direction: reverse ? "B_to_A" : "A_to_B"
+      });
+    }
+  });
+  for (let index = 0; index < repetitions + 1; index++) {
+    const sameFile = FACE_PAIRS[index % FACE_PAIRS.length].a;
+    trials.push({
+      changed: false,
+      feature: "",
+      file_a: sameFile,
+      file_b: sameFile,
+      direction: "no_change"
+    });
+  }
+  return shuffle(trials);
+}
+
+function makeTrials(id, isPractice) {
+  if (id === "posner") return makePosnerTrials(isPractice ? 1 : 4);
+  if (id === "search") return makeSearchTrials(isPractice ? 1 : 4);
+  return makeFaceTrials(isPractice ? 1 : 4);
+}
+
+function beginPractice() {
+  phase = "practice";
+  trialList = makeTrials(selected.id, true);
+  trialIndex = 0;
+  runNext();
+}
+
+function beginFormal() {
+  phase = "formal";
+  trialList = makeTrials(selected.id, false);
+  trialIndex = 0;
+  runNext();
+}
+
+async function runNext() {
+  if (!active) return;
+  if (trialIndex >= trialList.length) {
+    if (phase === "practice") {
+      panel(
+        "练习完成",
+        '<p>你已经完成练习。接下来进入正式实验。正式试次的数据会与练习试次分开标记。</p>',
+        '<button class="task-button" id="formal-start">开始正式实验</button>'
+      );
+      $("#formal-start").onclick = beginFormal;
+    } else {
+      finishTask();
+    }
+    return;
+  }
+  const progress = (trialIndex / trialList.length) * 100;
+  $("#task-progress").style.width = progress + "%";
+  const trial = trialList[trialIndex];
+  if (selected.id === "posner") await runPosnerTrial(trial);
+  else if (selected.id === "search") await runSearchTrial(trial);
+  else await runFaceTrial(trial);
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function makeTrialContext() {
+  return {
+    trial_number: trialIndex + 1,
+    phase,
+    started_perf: performance.now()
+  };
+}
+
+function appendTrial(data) {
+  const row = Object.assign({
+    session_id: sessionId,
+    participant,
+    experiment: selected.id,
+    phase,
+    trial_number: trialIndex + 1,
+    trial_timestamp: new Date().toISOString(),
+    eye_tracking_enabled: eyeEnabled,
+    gaze_samples_in_trial: sessionGaze.filter((sample) =>
+      sample.trial_number === trialIndex + 1 && sample.phase === phase
+    ).length
+  }, data);
+  sessionRows.push(row);
+  const stored = readStoredArray(STORAGE_TRIALS);
+  stored.push(row);
+  writeStoredArray(STORAGE_TRIALS, stored);
+}
+
+function waitForKey(keys, timeoutMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const start = performance.now();
+    const finish = (key, status) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("keydown", onKey);
+      clearTimeout(timeout);
+      resolve({
+        key,
+        status,
+        rt_ms: key ? performance.now() - start : null
+      });
+    };
+    const onKey = (event) => {
+      const key = event.key.toLowerCase();
+      if (!keys.includes(key)) return;
+      event.preventDefault();
+      finish(key, "responded");
+    };
+    window.addEventListener("keydown", onKey);
+    const timeout = setTimeout(() => finish(null, "timeout"), timeoutMs);
+  });
+}
+
+async function runPosnerTrial(trial) {
+  const context = makeTrialContext();
+  currentTrialContext = context;
+  const isPractice = phase === "practice";
+  taskStage.innerHTML =
+    '<div class="task-panel"><p class="task-muted">請注視中央十字</p>' +
+    '<div class="cue-display"><div class="cue-box" id="posner-left"></div>' +
+    '<div class="cue-center" id="posner-center">+</div><div class="cue-box" id="posner-right"></div></div>' +
+    '<p class="task-muted">目标出现后按 A（左）或 L（右）</p></div>';
+  const left = $("#posner-left");
+  const right = $("#posner-right");
+  const center = $("#posner-center");
+  await sleep(500);
+  if (!active) return;
+
+  const cueOnset = performance.now();
+  if (trial.cue_type === "外周线索") {
+    if (trial.cue_side === "左" || trial.cue_side === "中性") left.classList.add("is-cued");
+    if (trial.cue_side === "右" || trial.cue_side === "中性") right.classList.add("is-cued");
+  } else {
+    center.textContent = trial.cue_side === "中性" ? "↔" : (trial.cue_side === "左" ? "←" : "→");
+    center.classList.add("cue-arrow");
+  }
+  await sleep(100);
+  if (!active) return;
+  left.classList.remove("is-cued");
+  right.classList.remove("is-cued");
+  center.textContent = "+";
+  center.classList.remove("cue-arrow");
+  const remaining = Math.max(0, trial.soa_ms - (performance.now() - cueOnset));
+  await sleep(remaining);
+  if (!active) return;
+
+  const target = trial.target_side === "左" ? left : right;
+  target.classList.add("is-target");
+  target.textContent = "●";
+  const targetOnset = performance.now();
+  const response = await waitForKey(["a", "l"], 1800);
+  if (!active) return;
+  const responseSide = response.key === "a" ? "左" : response.key === "l" ? "右" : "";
+  const correct = response.status === "responded" && responseSide === trial.target_side;
+  appendTrial({
+    cue_type: trial.cue_type,
+    cue_validity: trial.validity,
+    cue_side: trial.cue_side,
+    target_side: trial.target_side,
+    soa_requested_ms: trial.soa_ms,
+    soa_actual_ms: Math.round(targetOnset - cueOnset),
+    response_key: response.key || "",
+    response_side: responseSide,
+    response_status: response.status,
+    correct,
+    rt_ms: response.rt_ms === null ? "" : Math.round(response.rt_ms)
+  });
+  currentTrialContext = null;
+  trialIndex++;
+  if (isPractice) await showPracticeFeedback(correct);
+  else await sleep(300);
+  runNext();
+}
+
+function createSearchArray(trial) {
+  const items = [];
+  const targetIndex = trial.target_present ? Math.floor(Math.random() * trial.set_size) : -1;
+  for (let index = 0; index < trial.set_size; index++) {
+    if (index === targetIndex) {
+      items.push({ letter: "T", color: "red", is_target: true });
+    } else if (trial.search_type === "特征搜索") {
+      items.push({ letter: "T", color: "green", is_target: false });
+    } else {
+      const distractorType = index % 2 === 0 ? "redL" : "greenT";
+      items.push(distractorType === "redL"
+        ? { letter: "L", color: "red", is_target: false }
+        : { letter: "T", color: "green", is_target: false });
+    }
+  }
+  return { items: shuffle(items), target_index: targetIndex };
+}
+
+async function runSearchTrial(trial) {
+  const context = makeTrialContext();
+  currentTrialContext = context;
+  const generated = createSearchArray(trial);
+  const layout = generated.items.map((item, index) => ({
+    index,
+    letter: item.letter,
+    color: item.color,
+    is_target: item.is_target
+  }));
+  taskStage.innerHTML =
+    '<div class="task-panel"><p class="task-muted">' + escapeHtml(trial.search_type) +
+    ' · SET SIZE ' + trial.set_size + '</p>' +
+    '<p>寻找<strong>红色 T</strong>。按 F = 存在，按 J = 不存在。</p>' +
+    '<div class="search-grid search-grid-active" style="--search-columns:6">' +
+    generated.items.map((item) =>
+      '<span class="search-item ' + (item.color === "red" ? "search-red" : "search-green") + '">' +
+      item.letter + '</span>'
+    ).join("") + '</div><p class="task-muted">请尽量又快又准确地判断</p></div>';
+  const targetOnset = performance.now();
+  const response = await waitForKey(["f", "j"], 5000);
+  if (!active) return;
+  const responsePresent = response.key === "f" ? true : response.key === "j" ? false : null;
+  const correct = responsePresent !== null && responsePresent === trial.target_present;
+  appendTrial({
+    search_type: trial.search_type,
+    set_size: trial.set_size,
+    target_present: trial.target_present,
+    target_position: generated.target_index,
+    stimulus_layout: JSON.stringify(layout),
+    response_key: response.key || "",
+    response_present: responsePresent === null ? "" : responsePresent,
+    response_status: response.status,
+    correct,
+    rt_ms: response.rt_ms === null ? "" : Math.round(response.rt_ms)
+  });
+  currentTrialContext = null;
+  trialIndex++;
+  if (phase === "practice") await showPracticeFeedback(correct);
+  else await sleep(300);
+  runNext();
+}
+
+async function preloadFaceStimuli() {
+  const files = FACE_PAIRS.flatMap((pair) => [pair.a, pair.b]);
+  await Promise.all(files.map((file) => new Promise((resolve) => {
+    const image = new Image();
+    image.onload = resolve;
+    image.onerror = resolve;
+    image.src = FACE_BASE + file;
+  })));
+}
+
+function faceStimulusMarkup() {
+  return '<div class="face-flicker-wrap"><div id="face-flicker-frame" class="face-flicker-frame">' +
+    '<img id="face-flicker-image" alt="面孔刺激" draggable="false"></div>' +
+    '<div class="face-response-buttons">' +
+    '<button class="task-button" id="face-found">发现变化（空格）</button>' +
+    '<button class="task-button secondary" id="face-no-change">没有变化（N）</button>' +
+    '</div><p class="task-muted">面孔交替呈现，中间会短暂空屏。每轮最长 12 秒。</p></div>';
+}
+
+async function runFaceTrial(trial) {
+  const context = makeTrialContext();
+  currentTrialContext = context;
+  await preloadFaceStimuli();
+  if (!active) return;
+  taskStage.innerHTML = '<div class="task-panel"><p class="task-muted">FACE FLICKER · ' +
+    (trial.changed ? "CHANGE TRIAL" : "NO-CHANGE TRIAL") + '</p>' + faceStimulusMarkup() + '</div>';
+  const image = $("#face-flicker-image");
+  let decision = null;
+  let flickerCount = 0;
+  const trialStart = performance.now();
+  const deadline = trialStart + 12000;
+  const fileA = FACE_BASE + trial.file_a;
+  const fileB = FACE_BASE + trial.file_b;
+
+  const setVisible = (src) => {
+    image.src = src;
+    image.style.visibility = "visible";
+  };
+  const setBlank = () => {
+    image.style.visibility = "hidden";
+  };
+  const stop = (value) => {
+    if (decision) return;
+    decision = value;
+  };
+  $("#face-found").onclick = () => stop("found");
+  $("#face-no-change").onclick = () => stop("no_change");
+  const keyboard = (event) => {
+    if (event.code === "Space") {
+      event.preventDefault();
+      stop("found");
+    } else if (event.key.toLowerCase() === "n") {
+      stop("no_change");
+    }
+  };
+  window.addEventListener("keydown", keyboard);
+
+  let showA = true;
+  while (active && !decision && performance.now() < deadline) {
+    setVisible(showA ? fileA : fileB);
+    flickerCount++;
+    await sleep(250);
+    if (!active || decision) break;
+    setBlank();
+    await sleep(80);
+    showA = !showA;
+  }
+  window.removeEventListener("keydown", keyboard);
+  if (!active) return;
+  if (!decision) decision = "timeout";
+  const decisionRt = decision === "timeout" ? "" : Math.round(performance.now() - trialStart);
+  const hit = trial.changed && decision === "found";
+  const falseAlarm = !trial.changed && decision === "found";
+  const miss = trial.changed && decision === "no_change";
+  const correctRejection = !trial.changed && decision === "no_change";
+
+  if (decision === "found") {
+    taskStage.innerHTML =
+      '<div class="task-panel"><p class="task-muted">CHANGE DETECTED</p><h2>你发现了变化</h2>' +
+      '<p>请选择你认为发生变化的面部部位。</p>' +
+      '<div class="task-choice face-feature-choices">' +
+      FACE_PAIRS.map((pair) => '<button class="task-button secondary face-feature-choice" data-feature="' +
+        escapeHtml(pair.feature) + '">' + escapeHtml(pair.feature) + '</button>').join("") +
+      '</div></div>';
+    let chosenFeature = "";
+    const choiceStart = performance.now();
+    await new Promise((resolve) => {
+      document.querySelectorAll("[data-feature]").forEach((button) => {
+        button.onclick = () => {
+          chosenFeature = button.dataset.feature;
+          resolve();
+        };
+      });
+    });
+    const featureChoiceRt = Math.round(performance.now() - choiceStart);
+    appendTrial({
+      change_present: trial.changed,
+      change_feature: trial.feature,
+      file_a: trial.file_a,
+      file_b: trial.file_b,
+      change_direction: trial.direction,
+      decision: "found",
+      outcome: hit ? "hit" : "false_alarm",
+      change_detected: true,
+      feature_choice: chosenFeature,
+      feature_choice_correct: trial.changed ? chosenFeature === trial.feature : false,
+      feature_choice_rt_ms: featureChoiceRt,
+      decision_rt_ms: decisionRt,
+      response_status: "responded",
+      flicker_presentations: flickerCount
+    });
+  } else {
+    appendTrial({
+      change_present: trial.changed,
+      change_feature: trial.feature,
+      file_a: trial.file_a,
+      file_b: trial.file_b,
+      change_direction: trial.direction,
+      decision: decision,
+      outcome: hit ? "hit" : miss ? "miss" : correctRejection ? "correct_rejection" : falseAlarm ? "false_alarm" : "timeout",
+      change_detected: false,
+      feature_choice: "",
+      feature_choice_correct: "",
+      feature_choice_rt_ms: "",
+      decision_rt_ms: decisionRt,
+      response_status: decision === "timeout" ? "timeout" : "responded",
+      flicker_presentations: flickerCount
+    });
+  }
+  currentTrialContext = null;
+  trialIndex++;
+  if (phase === "practice") {
+    const correct = (trial.changed && decision === "found") || (!trial.changed && decision === "no_change");
+    await showPracticeFeedback(correct);
+  } else {
+    await sleep(300);
+  }
+  runNext();
+}
+
+async function showPracticeFeedback(correct) {
+  if (!active) return;
+  panel(
+    correct ? "判断正确" : "再留意一下",
+    '<p>' + (correct ? "很好，继续保持。" : "练习阶段可以继续熟悉刺激和按键方式。") + '</p>',
+    '<button class="task-button" id="practice-continue">继续</button>'
+  );
+  await new Promise((resolve) => {
+    $("#practice-continue").onclick = resolve;
+  });
+}
+
+function finishTask() {
+  active = false;
+  currentTrialContext = null;
+  stopEyeTracking();
+  $("#task-progress").style.width = "100%";
+  const formalRows = sessionRows.filter((row) => row.phase === "formal");
+  const responded = formalRows.filter((row) => row.response_status === "responded");
+  const scored = formalRows.filter((row) => typeof row.correct === "boolean");
+  const accuracy = scored.length
+    ? scored.filter((row) => row.correct).length / scored.length * 100
+    : 0;
+  const correctRts = formalRows
+    .filter((row) => row.correct === true && typeof row.rt_ms === "number")
+    .map((row) => row.rt_ms)
+    .sort((a, b) => a - b);
+  const median = correctRts.length ? correctRts[Math.floor(correctRts.length / 2)] : null;
+  const sessions = readStoredArray(STORAGE_SESSIONS);
+  const currentSession = sessions.find((item) => item.session_id === sessionId);
+  if (currentSession) {
+    currentSession.status = "completed";
+    currentSession.completed_at = new Date().toISOString();
+    writeStoredArray(STORAGE_SESSIONS, sessions);
+  }
+  const extraSummary = selected.id === "change"
+    ? '<div class="result-line"><span>命中 / 漏报 / 虚报 / 正确拒绝</span><b>' +
+      ["hit", "miss", "false_alarm", "correct_rejection"].map((outcome) =>
+        formalRows.filter((row) => row.outcome === outcome).length
+      ).join(" / ") + '</b></div>'
+    : "";
+  panel(
+    "实验完成",
+    '<p>感谢参与。以下为本次正式试次的描述性结果。所有练习与正式试次均已逐条保存在当前浏览器。</p>' +
+    '<div class="result-box">' +
+    '<div class="result-line"><span>参与者编号</span><b>' + escapeHtml(participant) + '</b></div>' +
+    '<div class="result-line"><span>Session ID</span><b>' + escapeHtml(sessionId.slice(0, 12)) + '</b></div>' +
+    '<div class="result-line"><span>正式试次数</span><b>' + formalRows.length + '</b></div>' +
+    '<div class="result-line"><span>已作答试次</span><b>' + responded.length + '</b></div>' +
+    '<div class="result-line"><span>正确率</span><b>' + accuracy.toFixed(1) + '%</b></div>' +
+    '<div class="result-line"><span>正确试次中位反应时</span><b>' + (median === null ? "—" : Math.round(median) + " ms") + '</b></div>' +
+    extraSummary +
+    '<div class="result-line"><span>眼动追踪</span><b>' + (eyeEnabled ? "已启用（探索性）" : "未启用") + '</b></div>' +
+    '<div class="result-line"><span>本次眼动样本</span><b>' + sessionGaze.length + '</b></div>' +
+    '</div>' +
+    '<p class="task-muted">数据保存在当前浏览器的本地存储中。清除浏览器数据或更换设备可能导致数据丢失，请及时下载备份。</p>',
+    '<div class="task-choice"><button class="task-button" id="download-session">下载本次试次 CSV</button>' +
+    '<button class="task-button secondary" id="download-gaze">下载本次眼动 CSV</button>' +
+    '<button class="task-button secondary" id="download-all">下载本机累计数据 CSV</button>' +
+    '<button class="task-button secondary" id="finish-close">返回网站</button></div>'
+  );
+  $("#download-session").onclick = () => downloadCSV(sessionRows, selected.id + "-" + participant + "-trials.csv");
+  $("#download-gaze").onclick = () => {
+    if (!sessionGaze.length) {
+      alert("本次没有记录到眼动样本。请确认已安装并启用 WebGazer。");
+      return;
+    }
+    downloadCSV(sessionGaze, selected.id + "-" + participant + "-gaze.csv");
+  };
+  $("#download-all").onclick = downloadAllLocalData;
+  $("#finish-close").onclick = exitTask;
+  if (sessionGaze.length) {
+    const storedGaze = readStoredArray(STORAGE_GAZE).concat(sessionGaze);
+    writeStoredArray(STORAGE_GAZE, storedGaze);
+  }
+}
+
+function csvCell(value) {
+  const text = value === null || value === undefined ? "" :
+    (typeof value === "object" ? JSON.stringify(value) : String(value));
+  return '"' + text.replace(/"/g, '""') + '"';
+}
+
+function downloadCSV(data, filename) {
+  if (!data || !data.length) {
+    alert("当前没有可导出的数据。");
+    return;
+  }
+  const keys = Array.from(new Set(data.flatMap((row) => Object.keys(row))));
+  const csv = [keys.map(csvCell).join(","), ...data.map((row) => keys.map((key) => csvCell(row[key])).join(","))].join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadAllLocalData() {
+  const allTrials = readStoredArray(STORAGE_TRIALS);
+  if (!allTrials.length) {
+    alert("当前浏览器尚无累计试次数据。");
+    return;
+  }
+  downloadCSV(allTrials, "attention-lab-all-trials.csv");
+}
+
+function exitTask() {
+  active = false;
+  currentTrialContext = null;
+  stopEyeTracking();
+  eyeEnabled = false;
+  taskOverlay.classList.remove("open");
+  taskOverlay.setAttribute("aria-hidden", "true");
+  $("#task-progress").style.width = "0%";
+}
+
