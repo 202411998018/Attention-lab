@@ -13,7 +13,7 @@
 <circle cx="204" cy="256" r="3.5" fill="#FFFFFF"/>
 <circle cx="300" cy="256" r="3.5" fill="#FFFFFF"/>
 <path d="M256 270 Q244 314 256 320 Q268 324 276 316" fill="none" stroke="#263342" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M216 348 Q256 390 296 348" fill="none" stroke="#9C5E58" stroke-width="10" stroke-linecap="round"/>
+<path d="M220 354 Q256 370 292 354" fill="none" stroke="#9C5E58" stroke-width="10" stroke-linecap="round"/>
 <ellipse cx="184" cy="318" rx="15" ry="7" fill="#D99C87" opacity=".24"/>
 <ellipse cx="328" cy="318" rx="15" ry="7" fill="#D99C87" opacity=".24"/>
 </svg>
