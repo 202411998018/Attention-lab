@@ -9,7 +9,7 @@ Attention Lab is a browser-based educational platform featuring three classic at
 - **Face Flicker Change Detection** — face-feature change detection using a flicker-style task.
 - **Visual Search / Feature Integration** — feature and conjunction search across set sizes.
 
-The site includes participant setup, practice and formal trials, balanced condition generation, irregular randomized visual-search layouts, response-time and accuracy recording, local trial-level persistence, session summaries, and CSV export.
+The site includes participant setup, practice and formal trials, keyboard-first navigation and responses, balanced condition generation, irregular randomized visual-search layouts, response-time and accuracy recording, local trial-level persistence, session summaries, and CSV export.
 
 ## Run locally
 
