@@ -84,6 +84,14 @@ let gazeChunkIndex = 0;
 document.querySelectorAll("[data-open]").forEach((button) => {
   button.addEventListener("click", () => openModal(button.dataset.open));
 });
+$("#export-all-backup").onclick = () => exportAllLocalBackup(false);
+$("#export-incomplete-backup").onclick = () => exportAllLocalBackup(true);
+$("#export-trials-csv").onclick = async () => downloadCSV(await getAllLocalRecords("trials"), "attention-lab-trials.csv");
+$("#export-gaze-csv").onclick = async () => downloadCSV(await getAllLocalRecords("gaze"), "attention-lab-gaze.csv");
+$("#export-events-csv").onclick = async () => downloadCSV(await getAllLocalRecords("events"), "attention-lab-events.csv");
+$("#export-sessions-csv").onclick = async () => downloadCSV(await getAllLocalRecords("sessions"), "attention-lab-sessions.csv");
+refreshDataArchive();
+
 
 function openModal(id) {
   selected = EXPERIMENTS[id];
@@ -481,6 +489,10 @@ async function exportAllLocalBackup(incompleteOnly) {
     getAllLocalRecords("gaze"), getAllLocalRecords("events")
   ]);
   const chosenSessions = incompleteOnly ? sessions.filter((row) => row.status !== "completed") : sessions;
+  if (incompleteOnly && !chosenSessions.length) {
+    alert("当前浏览器没有未完成或中断的 Session。");
+    return;
+  }
   const ids = new Set(chosenSessions.map((row) => row.session_id));
   downloadJSON({
     schema_version: 2,
@@ -536,6 +548,7 @@ function startNewSession() {
   upsertStoredArray(STORAGE_SESSIONS, sessionMeta);
   queueDataRecord("sessions", sessionMeta);
   recordEvent("session_start", { screen_width: sessionMeta.screen_width, screen_height: sessionMeta.screen_height });
+  refreshDataArchive();
 }
 
 function eyeSetup() {
