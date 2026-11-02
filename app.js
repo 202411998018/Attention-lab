@@ -824,6 +824,9 @@ function finishTask() {
     currentSession.completed_at = new Date().toISOString();
     writeStoredArray(STORAGE_SESSIONS, sessions);
   }
+  const storageWarningHtml = sessionWarnings.length
+    ? '<p class="task-muted">注意：本地存储出现问题，建议立即下载本次 CSV 备份。详情：' + escapeHtml(sessionWarnings.join("；")) + '</p>'
+    : "";
   const extraSummary = selected.id === "change"
     ? '<div class="result-line"><span>命中 / 漏报 / 虚报 / 正确拒绝</span><b>' +
       ["hit", "miss", "false_alarm", "correct_rejection"].map((outcome) =>
@@ -844,7 +847,7 @@ function finishTask() {
     '<div class="result-line"><span>眼动追踪</span><b>' + (eyeEnabled ? "已启用（探索性）" : "未启用") + '</b></div>' +
     '<div class="result-line"><span>本次眼动样本</span><b>' + sessionGaze.length + '</b></div>' +
     '</div>' +
-    '<p class="task-muted">数据保存在当前浏览器的本地存储中。清除浏览器数据或更换设备可能导致数据丢失，请及时下载备份。</p>',
+    '<p class="task-muted">数据保存在当前浏览器的本地存储中。清除浏览器数据或更换设备可能导致数据丢失，请及时下载备份。</p>' + storageWarningHtml,
     '<div class="task-choice"><button class="task-button" id="download-session">下载本次试次 CSV</button>' +
     '<button class="task-button secondary" id="download-gaze">下载本次眼动 CSV</button>' +
     '<button class="task-button secondary" id="download-all">下载本机累计数据 CSV</button>' +
