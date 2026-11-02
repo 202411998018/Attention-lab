@@ -89,8 +89,14 @@
 
 1. **Session metadata**：匿名参与者编号、session ID、实验类型、浏览器与操作系统、屏幕分辨率、viewport 尺寸、devicePixelRatio、眼动启用状态、校准状态与校准误差。
 2. **Trial**：一行一个试次，保留实验条件、刺激编号、practice/formal、刺激 onset、反应键、反应时、正确率、timeout 等行为字段。
-3. **Gaze samples**：一行一个注视预测样本，包含 session ID、trial number、phase、样本时间、相对试次时间、x/y 像素坐标、归一化坐标和视口尺寸。
+3. **Gaze samples**：一行一个注视预测回调，包含 session ID、trial number、phase、样本序号、WebGazer elapsed time、本地 `performance.now()`、相对试次时间、x/y 像素坐标、归一化坐标、视口尺寸和 `gaze_valid`。预测失败（回调数据为 null）也应保留为无效样本记录，不能静默丢弃，否则无法计算有效样本比例。
 4. **Events**：一行一个实验事件，包含 session ID、trial number、event name、单调时钟时间和 UTC 时间。事件至少覆盖 fixation onset、cue onset/offset、target onset、face A/blank/B onset、search array onset 和 response。
+
+### 眼动数据质量字段
+- Session 级记录眼动同意状态、摄像头权限结果、校准开始/结束时间、校准点坐标、独立验证误差、有效预测比例和失败原因。
+- 每个试次记录 gaze sample 总数、有效样本数、有效比例；不要只保存一个“已启用眼动”的布尔值。
+- 对 WebGazer 返回的坐标，保留原始 viewport 像素坐标；归一化坐标用于跨分辨率比较，但不能替代原始坐标。
+- 采样频率由实际回调时间戳计算，不预设为固定 30 Hz 或 60 Hz。
 
 ### 时间同步与存储
 
@@ -120,7 +126,7 @@
 
 ## 眼动追踪状态
 
-仓库当前未包含 `vendor/webgazer.js`。因此默认行为实验可以正常运行，但摄像头眼动追踪暂不可用。只有在加入固定版本的 WebGazer 构建、完成设备校准与独立精度验证后，才应启用眼动数据收集。WebGazer 在浏览器本地进行注视估计；项目本身不应上传或保存摄像头视频。
+仓库当前未包含 `vendor/webgazer.js`。因此默认行为实验可以正常运行，但摄像头眼动追踪暂不可用。只有在加入固定版本的 WebGazer 构建、完成设备校准与独立精度验证后，才应启用眼动数据收集。 WebGazer 官方维护已于 2026-02-24 结束，后续浏览器兼容性需由项目自行回归测试。WebGazer 在浏览器本地进行注视估计；项目本身不应上传或保存摄像头视频。
 
 ## 正式收集前的验证清单
 
