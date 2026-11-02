@@ -1,4 +1,4 @@
-// Generate the 10 SVG face stimuli for the flicker change-detection prototype.
+// Generate the 8 SVG face stimuli for the flicker change-detection prototype.
 // Run with: node scripts/generate_face_stimuli.mjs
 // Output: assets/face-change-stimuli/*.svg
 import { mkdir, writeFile } from "node:fs/promises";
@@ -6,7 +6,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 const outputDir = new URL("../assets/face-change-stimuli/", import.meta.url);
 await mkdir(outputDir, { recursive: true });
 
-function makeFaceSvg({ gaze = "center", mouth = "neutral", brows = "flat", nose = "normal", hair = "short" } = {}) {
+function makeFaceSvg({ gaze = "center", mouth = "neutral", brows = "flat", nose = "normal" } = {}) {
   const ink = "#263342";
   const skin = "#E9C7A8";
   const hairColor = "#34465A";
@@ -22,13 +22,10 @@ function makeFaceSvg({ gaze = "center", mouth = "neutral", brows = "flat", nose 
   parts.push(`<ellipse cx="370" cy="278" rx="27" ry="43" fill="${skin}" stroke="${ink}" stroke-width="8"/>`);
   parts.push(`<path d="M150 208 Q150 130 256 126 Q362 130 362 208 L350 318 Q338 400 256 416 Q174 400 162 318 Z" fill="${skin}" stroke="${ink}" stroke-width="9" stroke-linejoin="round"/>`);
 
-  if (hair === "bangs") {
-    parts.push(`<path d="M160 190 Q178 176 194 198 Q214 174 232 198 Q252 174 270 198 Q292 176 310 198 Q330 176 352 196 L344 224 Q320 246 300 218 Q280 252 256 220 Q230 250 210 218 Q184 246 168 224 Z" fill="${hairColor}" stroke="${ink}" stroke-width="8" stroke-linejoin="round"/>`);
-  }
 
   const browPaths = {
     flat: ["M184 224 Q208 214 230 224", "M282 224 Q304 214 328 224"],
-    raised: ["M184 216 Q208 190 230 216", "M282 216 Q304 190 328 216"],
+    raised: ["M184 220 Q208 205 230 220", "M282 220 Q304 205 328 220"],
     worried: ["M184 210 Q208 232 230 218", "M282 218 Q304 232 328 210"]
   };
   const [leftBrow, rightBrow] = browPaths[brows];
@@ -37,7 +34,7 @@ function makeFaceSvg({ gaze = "center", mouth = "neutral", brows = "flat", nose 
 
   parts.push(`<ellipse cx="208" cy="260" rx="29" ry="20" fill="#FFFCF7" stroke="${ink}" stroke-width="7"/>`);
   parts.push(`<ellipse cx="304" cy="260" rx="29" ry="20" fill="#FFFCF7" stroke="${ink}" stroke-width="7"/>`);
-  const gazeOffset = { left: -12, center: 0, right: 12 }[gaze];
+  const gazeOffset = { left: -8, center: 0, right: 8 }[gaze];
   parts.push(`<circle cx="${208 + gazeOffset}" cy="260" r="11" fill="${ink}"/>`);
   parts.push(`<circle cx="${304 + gazeOffset}" cy="260" r="11" fill="${ink}"/>`);
   parts.push(`<circle cx="${204 + gazeOffset}" cy="256" r="3.5" fill="#FFFFFF"/>`);
@@ -46,11 +43,11 @@ function makeFaceSvg({ gaze = "center", mouth = "neutral", brows = "flat", nose 
   const nosePaths = {
     normal: "M256 270 Q244 314 256 320 Q268 324 276 316",
     small: "M256 278 Q250 304 256 308 Q263 310 268 305",
-    wide: "M256 270 Q238 312 256 320 Q278 324 286 312"
+    wide: "M256 270 Q242 313 256 320 Q272 323 280 313"
   };
   const mouthPaths = {
     neutral: "M218 356 Q256 358 294 356",
-    smile: "M216 348 Q256 390 296 348",
+    smile: "M220 354 Q256 370 292 354",
     frown: "M216 374 Q256 336 296 374"
   };
   parts.push(`<path d="${nosePaths[nose]}" fill="none" stroke="${ink}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`);
@@ -70,8 +67,6 @@ const stimuli = [
   ["06_brows_raised.svg", { brows: "raised" }],
   ["07_nose_normal.svg", { nose: "normal" }],
   ["08_nose_wide.svg", { nose: "wide" }],
-  ["09_hair_short.svg", { hair: "short" }],
-  ["10_hair_bangs.svg", { hair: "bangs" }]
 ];
 
 for (const [filename, params] of stimuli) {
