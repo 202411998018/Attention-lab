@@ -58,7 +58,7 @@ function makeFaceSvg({ gaze = "center", mouth = "neutral", brows = "flat", nose 
   parts.push('<ellipse cx="184" cy="318" rx="15" ry="7" fill="#D99C87" opacity=".24"/>');
   parts.push('<ellipse cx="328" cy="318" rx="15" ry="7" fill="#D99C87" opacity=".24"/>');
   parts.push("</svg>");
-  return parts.join("\\n");
+  return parts.join("\n");
 }
 
 const stimuli = [
