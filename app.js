@@ -79,7 +79,7 @@ let sessionMeta = null;
 let eyeCalibrationContext = null;
 let sessionGazeIndex = 0;
 let sessionEventIndex = 0;
-let gazeFallbackBuffer = [];
+let gazeFallbackPersistedIndex = 0;
 let gazeChunkIndex = 0;
 
 document.querySelectorAll("[data-open]").forEach((button) => {
@@ -133,7 +133,6 @@ $("#start-experiment").onclick = () => {
 };
 $("#exit-task").onclick = () => {
   if (confirm("确定退出本次实验吗？已完成试次和当前已产生的部分数据都会保留，并将本次 Session 标记为未完成。")) {
-    stopEyeTracking();
     active = false;
     exitTask();
   }
@@ -214,7 +213,10 @@ function upsertStoredArray(key, row) {
 }
 
 function openDataDB() {
-  if (!("indexedDB" in window)) return Promise.resolve(null);
+  if (!("indexedDB" in window)) {
+    dataDbAvailable = false;
+    return Promise.resolve(null);
+  }
   if (dataDbPromise) return dataDbPromise;
   dataDbPromise = new Promise((resolve) => {
     let request;
@@ -270,7 +272,14 @@ async function flushPendingData() {
         resolve(false);
         return;
       }
-      transaction.oncomplete = () => { dataDbAvailable = true; resolve(true); };
+      transaction.oncomplete = () => {
+        dataDbAvailable = true;
+        if (batch.gaze && batch.gaze.length) {
+          const highestSaved = Math.max.apply(null, batch.gaze.map((row) => Number(row.sample_index) + 1));
+          if (Number.isFinite(highestSaved)) gazeFallbackPersistedIndex = Math.max(gazeFallbackPersistedIndex, highestSaved);
+        }
+        resolve(true);
+      };
       const restore = () => {
         dataDbAvailable = false;
         stores.forEach((name) => { pendingDbWrites[name] = batch[name].concat(pendingDbWrites[name]); });
@@ -300,14 +309,17 @@ async function readDbStore(store) {
 }
 
 function persistGazeFallbackChunk(force) {
-  if (!gazeFallbackBuffer.length || !sessionId) return;
-  if (!force && dataDbAvailable !== false) return;
-  const chunk = gazeFallbackBuffer.splice(0, GAZE_CHUNK_SIZE);
-  const key = GAZE_CHUNK_PREFIX + sessionId + ":" + String(gazeChunkIndex++).padStart(5, "0");
-  try { localStorage.setItem(key, JSON.stringify(chunk)); }
-  catch (error) {
-    sessionWarnings.push("眼动分块备份失败：" + String(error && error.message || error));
-    gazeFallbackBuffer = chunk.concat(gazeFallbackBuffer);
+  if (!sessionId || (!force && dataDbAvailable !== false)) return;
+  while (gazeFallbackPersistedIndex < sessionGaze.length) {
+    const chunk = sessionGaze.slice(gazeFallbackPersistedIndex, gazeFallbackPersistedIndex + GAZE_CHUNK_SIZE);
+    const key = GAZE_CHUNK_PREFIX + sessionId + ":" + String(gazeChunkIndex++).padStart(5, "0");
+    try {
+      localStorage.setItem(key, JSON.stringify(chunk));
+      gazeFallbackPersistedIndex += chunk.length;
+    } catch (error) {
+      sessionWarnings.push("眼动分块备份失败：" + String(error && error.message || error));
+      break;
+    }
   }
 }
 
@@ -465,9 +477,8 @@ function recordGazeSample(data, webgazerElapsedTime) {
     gaze_valid: valid
   };
   sessionGaze.push(sample);
-  gazeFallbackBuffer.push(sample);
   queueDataRecord("gaze", sample);
-  if (gazeFallbackBuffer.length >= GAZE_CHUNK_SIZE) persistGazeFallbackChunk();
+  if (dataDbAvailable === false) persistGazeFallbackChunk();
   if (context === currentTrialContext) {
     context.gaze_samples += 1;
     if (valid) context.gaze_valid_samples += 1;
@@ -535,7 +546,7 @@ function startNewSession() {
   eyeCalibrationContext = null;
   sessionGazeIndex = 0;
   sessionEventIndex = 0;
-  gazeFallbackBuffer = [];
+  gazeFallbackPersistedIndex = 0;
   gazeChunkIndex = 0;
   sessionStartIso = new Date().toISOString();
   sessionMeta = {
