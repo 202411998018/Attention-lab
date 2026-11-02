@@ -64,12 +64,81 @@ let gazePersisted = false;
 let sessionEpoch = 0;
 let pendingKeyCancel = null;
 let pendingActionCancel = null;
+let lastModalTrigger = null;
 
 document.querySelectorAll("[data-open]").forEach((button) => {
-  button.addEventListener("click", () => openModal(button.dataset.open));
+  button.addEventListener("click", () => openModal(button.dataset.open, button));
 });
 
-function openModal(id) {
+window.addEventListener("keydown", handleTaskKeyboard);
+
+function handleTaskKeyboard(event) {
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  const key = event.key.toLowerCase();
+
+  if (modal.classList.contains("open")) {
+    if (key === "escape") {
+      event.preventDefault();
+      closeModal();
+    }
+    return;
+  }
+  if (!taskOverlay.classList.contains("open")) return;
+
+  if (key === "escape") {
+    event.preventDefault();
+    const exitButton = $("#task-cancel") || $("#exit-task");
+    if (exitButton) exitButton.click();
+    return;
+  }
+
+  const activeId = document.activeElement ? document.activeElement.id : "";
+  if (activeId === "participant-id" && key === "enter") {
+    event.preventDefault();
+    $("#consent").focus();
+    return;
+  }
+  if (activeId === "consent" && key === "enter" && $("#setup-next")) {
+    event.preventDefault();
+    $("#setup-next").click();
+    return;
+  }
+
+  if ($("#eye-count") && /^[1-9]$/.test(key)) {
+    event.preventDefault();
+    const dot = document.querySelector('[data-eye-dot="' + (Number(key) - 1) + '"]');
+    if (dot && !dot.disabled) dot.click();
+    return;
+  }
+  if ($("#eye-enable") && key === "e") {
+    event.preventDefault();
+    $("#eye-enable").click();
+    return;
+  }
+  if ($("#eye-skip") && key === "s") {
+    event.preventDefault();
+    $("#eye-skip").click();
+    return;
+  }
+
+  const featureButtons = document.querySelectorAll("[data-feature]");
+  if (featureButtons.length && /^[1-4]$/.test(key)) {
+    event.preventDefault();
+    const choice = document.querySelector('[data-feature-index="' + key + '"]');
+    if (choice) choice.click();
+    return;
+  }
+
+  if ($("#download-session") && /^[1-4]$/.test(key)) {
+    event.preventDefault();
+    const actions = ["#download-session", "#download-gaze", "#download-all", "#finish-close"];
+    const action = $(actions[Number(key) - 1]);
+    if (action) action.click();
+  }
+}
+
+function openModal(id, trigger) {
+  lastModalTrigger = trigger || document.activeElement;
   selected = EXPERIMENTS[id];
   if (!selected) return;
   $("#modal-kicker").textContent = selected.english;
@@ -79,11 +148,13 @@ function openModal(id) {
     "<span>" + escapeHtml(selected.duration) + "</span>";
   modal.classList.add("open");
   modal.setAttribute("aria-hidden", "false");
+  $("#start-experiment").focus();
 }
 
 function closeModal() {
   modal.classList.remove("open");
   modal.setAttribute("aria-hidden", "true");
+  if (lastModalTrigger && typeof lastModalTrigger.focus === "function") lastModalTrigger.focus();
 }
 
 $(".modal-close").onclick = closeModal;
@@ -121,7 +192,10 @@ function panel(title, body, buttons) {
   taskStage.innerHTML =
     '<div class="task-panel"><p class="task-muted">ATTENTION LAB · ' +
     escapeHtml(selected ? selected.english : "EXPERIMENT") +
-    '</p><h2>' + title + '</h2>' + body + (buttons || "") + "</div>";
+    '</p><h2>' + title + '</h2>' + body + (buttons || "") +
+    '<p class="task-keyboard-hint">键盘操作：Tab 切换 · Enter 确认 · Space 勾选 · Esc 返回或退出</p></div>';
+  const firstControl = taskStage.querySelector('input:not([type="hidden"]),button:not(:disabled),select,textarea');
+  if (firstControl) firstControl.focus({ preventScroll: true });
 }
 
 function showSetup(id) {
@@ -137,8 +211,9 @@ function showSetup(id) {
     '<label class="task-muted" for="participant-id">匿名参与者编号（请勿填写姓名或学号）</label><br>' +
     '<input class="participant-input" id="participant-id" maxlength="24" value="' + escapeHtml(participant) + '">' +
     '<p><label><input type="checkbox" id="consent"> 我已阅读说明，并同意以匿名方式参与本次实验。</label></p>' +
-    '<div class="eye-status">眼动追踪为可选探索功能；若本地 WebGazer 文件未安装，行为实验仍可正常进行。</div>',
-    '<div class="task-choice"><button class="task-button" id="setup-next">继续</button><button class="task-button secondary" id="task-cancel">返回</button></div>'
+    '<div class="eye-status">眼动追踪为可选探索功能；若本地 WebGazer 文件未安装，行为实验仍可正常进行。</div>' +
+    '<p class="task-muted">键盘：Tab 切换 · Space 勾选同意 · Enter 继续 · Esc 返回</p>',
+    '<div class="task-choice"><button class="task-button" id="setup-next">继续（Enter）</button><button class="task-button secondary" id="task-cancel">返回（Esc）</button></div>'
   );
   $("#setup-next").onclick = () => {
     if (!$("#consent").checked) {
@@ -204,7 +279,7 @@ function eyeSetup() {
       "行为实验可正常进行",
       '<p>当前仓库没有安装本地 WebGazer 文件，因此本次无法启动摄像头眼动追踪。三个行为实验和试次数据记录不受影响。</p>' +
       '<div class="eye-status">眼动状态：未启用（本次不会生成眼动数据）。</div>',
-      '<button class="task-button" id="eye-skip">进入实验说明</button>'
+      '<button class="task-button" id="eye-skip">进入实验说明（Enter / S）</button>'
     );
     $("#eye-skip").onclick = beginInstructions;
     return;
@@ -212,7 +287,7 @@ function eyeSetup() {
   panel(
     "是否启用眼动追踪？",
     '<p>如果设备具有摄像头且浏览器允许访问，可以启用基于摄像头的注视估计。眼动数据仅保存在本机，精度需要在正式使用前单独验证。</p>',
-    '<div class="task-choice"><button class="task-button" id="eye-enable">启用并校准</button><button class="task-button secondary" id="eye-skip">跳过</button></div>'
+    '<div class="task-choice"><button class="task-button" id="eye-enable">启用并校准（E）</button><button class="task-button secondary" id="eye-skip">跳过（S）</button></div>'
   );
   $("#eye-enable").onclick = startEyeCalibration;
   $("#eye-skip").onclick = beginInstructions;
@@ -243,10 +318,10 @@ async function startEyeCalibration() {
     }
     let completed = 0;
     panel(
-      "九点点击校准",
-      '<p>依次点击九个圆点，并尽量注视圆点位置。该步骤仅为探索性校准，不代表眼动精度已经通过验证。</p>' +
+      "九点校准",
+      '<p>依次注视九个圆点，并按数字键 1–9 完成对应位置的校准；也可以使用 Tab 和 Enter 选择。该步骤仅为探索性校准，不代表眼动精度已经通过验证。</p>' +
       '<div class="eye-calibration">' + points.map((_, index) =>
-        '<button class="eye-dot" data-eye-dot="' + index + '" aria-label="校准点 ' + (index + 1) + '"></button>'
+        '<button class="eye-dot" data-eye-dot="' + index + '" aria-label="校准点 ' + (index + 1) + '">' + (index + 1) + '</button>'
       ).join("") + '</div><div class="eye-status" id="eye-count">已完成 0 / 9</div>'
     );
     document.querySelectorAll("[data-eye-dot]").forEach((dot, index) => {
@@ -270,7 +345,7 @@ async function startEyeCalibration() {
     panel(
       "眼动初始化失败",
       '<p>摄像头权限或眼动模块初始化失败。可以跳过眼动追踪，继续完成行为实验。</p>',
-      '<button class="task-button" id="eye-failed-continue">继续</button>'
+      '<button class="task-button" id="eye-failed-continue">继续（Enter）</button>'
     );
     $("#eye-failed-continue").onclick = beginInstructions;
   }
@@ -295,7 +370,7 @@ function beginInstructions() {
       '<p>请始终尽量注视屏幕中央的“+”。左右方框中会有一个目标圆点出现。目标出现后，请尽快判断它在左侧还是右侧。</p>' +
       '<p>按键：A = 左侧；L = 右侧。线索可能出现在外围方框，也可能以中央箭头形式出现；有时线索方向不指向目标。</p>' +
       '<p>请尽量保持头部稳定、眼睛注视中央，并兼顾速度与准确性。</p>',
-      '<button class="task-button" id="instructions-next">开始练习</button>'
+      '<button class="task-button" id="instructions-next">开始练习（Enter）</button>'
     );
   } else if (selected.id === "search") {
     panel(
@@ -309,7 +384,7 @@ function beginInstructions() {
     panel(
       "面孔变化检测任务",
       '<p>屏幕会反复呈现两张面孔，中间短暂出现空屏。请观察两张面孔之间是否发生变化。</p>' +
-      '<p>发现变化时点击“发现变化”，随后选择发生变化的部位；如果认为没有变化，点击“没有变化”。部分试次确实没有变化。</p>' +
+      '<p>发现变化时按 Space；如果认为没有变化，按 N。发现变化后，再按数字键 1–4 选择部位。部分试次确实没有变化。</p>' +
       '<p>请不要猜测，尽可能准确地报告。</p>',
       '<button class="task-button" id="instructions-next">开始练习</button>'
     );
