@@ -31,11 +31,11 @@
 **研究问题：** 不同面部特征的变化是否具有不同的觉察难度？
 
 ### 设计
-- 刺激：`assets/face-change-stimuli/` 中的 10 张 SVG，组成注视方向、嘴角、眉毛、鼻子和发型五组单特征变化配对。
+- 刺激：`assets/face-change-stimuli/` 中的 8 张 SVG，组成注视方向、嘴角、眉毛和鼻子四组单特征变化配对；已删除发型变化条件。
 - 范式：A（250 ms）→ 空屏（80 ms）→ B（250 ms）→ 空屏（80 ms），循环呈现。
-- 正式试次：每类变化 4 次（A/B 方向各两次），共 20 个变化试次；另有 5 个无变化 catch trials，共 25 次。
+- 正式试次：每类变化 4 次（A/B 方向各两次），共 16 个变化试次；另有 5 个无变化 catch trials，共 21 次。
 - 参与者发现变化后按“发现变化”，并选择变化部位；认为没有变化时按“没有变化”。
-- 每个试次最长 12 秒；超时作为独立状态记录，不自动等同于正确拒绝或漏报。
+- 练习阶段为 6 次（每类变化 1 次，另有 2 次无变化试次）。每个试次最长 12 秒；超时作为独立状态记录，不自动等同于正确拒绝或漏报。
 
 ### 主要指标
 - 命中、漏报、虚报、正确拒绝；
@@ -47,7 +47,7 @@
 `change_present`、`change_feature`、`file_a`、`file_b`、`change_direction`、`decision`、`outcome`、`feature_choice`、`feature_choice_correct`、`decision_rt_ms`、`feature_choice_rt_ms`、`flicker_presentations`。
 
 ### 方法学限制
-当前每类变化只有一个基础刺激配对，变化类型与刺激实例尚未分离；五类变化的视觉显著性也未经预实验匹配。因此当前结果只能作为原型试测，不应直接将部位差异解释为社会性或认知机制差异。正式研究前应扩展多个面孔实例并进行显著性/难度预试。
+当前每类变化只有一个基础刺激配对，变化类型与刺激实例尚未分离；四类变化的视觉显著性也未经预实验匹配。因此当前结果只能作为原型试测，不应直接将部位差异解释为社会性或认知机制差异。正式研究前应扩展多个面孔实例并进行显著性/难度预试。
 
 ## 3. Visual Search / Feature Integration｜视觉搜索与特征整合
 
@@ -70,7 +70,7 @@
 - 特征搜索与结合搜索斜率的比较。
 
 ### 逐试次字段
-`search_type`、`set_size`、`target_present`、`target_position`、`stimulus_layout`、`response_key`、`response_present`、`response_status`、`correct`、`rt_ms`。
+`search_type`、`set_size`、`target_present`、`target_position`、`stimulus_area_width_px`、`stimulus_area_height_px`、`stimulus_layout`（含每个项目的像素坐标和相对坐标）、`response_key`、`response_present`、`response_status`、`correct`、`rt_ms`。
 
 ## 数据保存与导出
 
