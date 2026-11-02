@@ -601,26 +601,30 @@ function generateScatterPositions(count, container) {
   const itemHeight = firstItem ? firstItem.offsetHeight : 40;
   const marginX = itemWidth / 2 + 8;
   const marginY = itemHeight / 2 + 8;
-  let minDistance = Math.max(itemWidth * 1.2, Math.min(66, Math.min(width, height) * 0.16));
+  let gap = Math.max(3, itemWidth * 0.16);
   let positions = [];
 
   // Rejection sampling gives each item an independent, irregular position.
-  for (let relaxation = 0; relaxation < 6; relaxation++) {
+  // The rectangular clearance check prevents glyph boxes from overlapping.
+  for (let relaxation = 0; relaxation < 7; relaxation++) {
     positions = [];
     let attempts = 0;
-    const maxAttempts = count * 1200;
+    const maxAttempts = count * 1600;
     while (positions.length < count && attempts < maxAttempts) {
       attempts += 1;
       const x = marginX + Math.random() * Math.max(1, width - marginX * 2);
       const y = marginY + Math.random() * Math.max(1, height - marginY * 2);
-      const separated = positions.every((point) => Math.hypot(point.x - x, point.y - y) >= minDistance);
+      const separated = positions.every((point) =>
+        Math.abs(point.x - x) >= itemWidth + gap ||
+        Math.abs(point.y - y) >= itemHeight + gap
+      );
       if (separated) positions.push({ x, y });
     }
     if (positions.length === count) break;
-    minDistance *= 0.88;
+    gap *= 0.78;
   }
 
-  // Very small viewports use a lightly jittered fallback rather than allowing overlap.
+  // Fallback for unusually small screens: jittered positions remain separated as much as possible.
   if (positions.length < count) {
     const columns = Math.ceil(Math.sqrt(count * width / Math.max(1, height)));
     const rows = Math.ceil(count / columns);
@@ -631,8 +635,8 @@ function generateScatterPositions(count, container) {
       const column = slot % columns;
       const row = Math.floor(slot / columns);
       return {
-        x: marginX + (column + 0.5) * cellWidth + (Math.random() - 0.5) * cellWidth * 0.28,
-        y: marginY + (row + 0.5) * cellHeight + (Math.random() - 0.5) * cellHeight * 0.28
+        x: marginX + (column + 0.5) * cellWidth + (Math.random() - 0.5) * cellWidth * 0.16,
+        y: marginY + (row + 0.5) * cellHeight + (Math.random() - 0.5) * cellHeight * 0.16
       };
     });
   }
