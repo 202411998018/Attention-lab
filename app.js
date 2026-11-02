@@ -62,6 +62,9 @@ let currentTrialContext = null;
 let sessionStartIso = "";
 let sessionWarnings = [];
 let gazePersisted = false;
+let sessionEpoch = 0;
+let pendingKeyCancel = null;
+let pendingActionCancel = null;
 
 document.querySelectorAll("[data-open]").forEach((button) => {
   button.addEventListener("click", () => openModal(button.dataset.open));
@@ -175,6 +178,7 @@ function writeStoredArray(key, values) {
 }
 
 function startNewSession() {
+  sessionEpoch += 1;
   sessionId = makeId();
   sessionRows = [];
   sessionGaze = [];
@@ -408,6 +412,7 @@ function beginFormal() {
 }
 
 async function runNext() {
+  const epoch = sessionEpoch;
   if (!active) return;
   if (trialIndex >= trialList.length) {
     if (phase === "practice") {
@@ -425,9 +430,9 @@ async function runNext() {
   const progress = (trialIndex / trialList.length) * 100;
   $("#task-progress").style.width = progress + "%";
   const trial = trialList[trialIndex];
-  if (selected.id === "posner") await runPosnerTrial(trial);
-  else if (selected.id === "search") await runSearchTrial(trial);
-  else await runFaceTrial(trial);
+  if (selected.id === "posner") await runPosnerTrial(trial, epoch);
+  else if (selected.id === "search") await runSearchTrial(trial, epoch);
+  else await runFaceTrial(trial, epoch);
 }
 
 function sleep(milliseconds) {
@@ -470,6 +475,7 @@ function waitForKey(keys, timeoutMs) {
       settled = true;
       window.removeEventListener("keydown", onKey);
       clearTimeout(timeout);
+      if (pendingKeyCancel === cancel) pendingKeyCancel = null;
       resolve({
         key,
         status,
@@ -482,12 +488,30 @@ function waitForKey(keys, timeoutMs) {
       event.preventDefault();
       finish(key, "responded");
     };
+    const cancel = () => finish(null, "cancelled");
+    pendingKeyCancel = cancel;
     window.addEventListener("keydown", onKey);
     const timeout = setTimeout(() => finish(null, "timeout"), timeoutMs);
   });
 }
 
-async function runPosnerTrial(trial) {
+function waitForTaskAction(register) {
+  return new Promise((resolve) => {
+    const finish = () => {
+      if (pendingActionCancel === finish) pendingActionCancel = null;
+      resolve();
+    };
+    pendingActionCancel = finish;
+    register(finish);
+  });
+}
+
+function cancelPendingTaskActions() {
+  if (pendingKeyCancel) pendingKeyCancel();
+  if (pendingActionCancel) pendingActionCancel();
+}
+
+async function runPosnerTrial(trial, epoch) {
   const context = makeTrialContext();
   currentTrialContext = context;
   const isPractice = phase === "practice";
@@ -500,7 +524,7 @@ async function runPosnerTrial(trial) {
   const right = $("#posner-right");
   const center = $("#posner-center");
   await sleep(500);
-  if (!active) return;
+  if (!active || epoch !== sessionEpoch) return;
 
   const cueOnset = performance.now();
   if (trial.cue_type === "外周线索") {
@@ -511,14 +535,14 @@ async function runPosnerTrial(trial) {
     center.classList.add("cue-arrow");
   }
   await sleep(100);
-  if (!active) return;
+  if (!active || epoch !== sessionEpoch) return;
   left.classList.remove("is-cued");
   right.classList.remove("is-cued");
   center.textContent = "+";
   center.classList.remove("cue-arrow");
   const remaining = Math.max(0, trial.soa_ms - (performance.now() - cueOnset));
   await sleep(remaining);
-  if (!active) return;
+  if (!active || epoch !== sessionEpoch) return;
 
   const target = trial.target_side === "左" ? left : right;
   target.classList.add("is-target");
@@ -526,7 +550,7 @@ async function runPosnerTrial(trial) {
   const targetOnset = performance.now();
   const targetOnsetIso = new Date().toISOString();
   const response = await waitForKey(["a", "l"], 1800);
-  if (!active) return;
+  if (!active || epoch !== sessionEpoch) return;
   const responseSide = response.key === "a" ? "左" : response.key === "l" ? "右" : "";
   const correct = response.status === "responded" && responseSide === trial.target_side;
   appendTrial({
@@ -570,7 +594,7 @@ function createSearchArray(trial) {
   return { items: shuffledItems, target_index: shuffledItems.findIndex((item) => item.is_target) };
 }
 
-async function runSearchTrial(trial) {
+async function runSearchTrial(trial, epoch) {
   const context = makeTrialContext();
   currentTrialContext = context;
   const generated = createSearchArray(trial);
@@ -592,7 +616,7 @@ async function runSearchTrial(trial) {
   const targetOnset = performance.now();
   const targetOnsetIso = new Date().toISOString();
   const response = await waitForKey(["f", "j"], 5000);
-  if (!active) return;
+  if (!active || epoch !== sessionEpoch) return;
   const responsePresent = response.key === "f" ? true : response.key === "j" ? false : null;
   const correct = responsePresent !== null && responsePresent === trial.target_present;
   appendTrial({
@@ -634,11 +658,11 @@ function faceStimulusMarkup() {
     '</div><p class="task-muted">面孔交替呈现，中间会短暂空屏。每轮最长 12 秒。</p></div>';
 }
 
-async function runFaceTrial(trial) {
+async function runFaceTrial(trial, epoch) {
   const context = makeTrialContext();
   currentTrialContext = context;
   await preloadFaceStimuli();
-  if (!active) return;
+  if (!active || epoch !== sessionEpoch) return;
   taskStage.innerHTML = '<div class="task-panel"><p class="task-muted">FACE FLICKER · ' +
     (trial.changed ? "CHANGE TRIAL" : "NO-CHANGE TRIAL") + '</p>' + faceStimulusMarkup() + '</div>';
   const image = $("#face-flicker-image");
@@ -684,7 +708,7 @@ async function runFaceTrial(trial) {
     showA = !showA;
   }
   window.removeEventListener("keydown", keyboard);
-  if (!active) return;
+  if (!active || epoch !== sessionEpoch) return;
   if (!decision) decision = "timeout";
   const decisionRt = decision === "timeout" ? "" : Math.round(performance.now() - trialStart);
   const hit = trial.changed && decision === "found";
@@ -702,7 +726,7 @@ async function runFaceTrial(trial) {
       '</div></div>';
     let chosenFeature = "";
     const choiceStart = performance.now();
-    await new Promise((resolve) => {
+    await waitForTaskAction((resolve) => {
       document.querySelectorAll("[data-feature]").forEach((button) => {
         button.onclick = () => {
           chosenFeature = button.dataset.feature;
@@ -710,6 +734,7 @@ async function runFaceTrial(trial) {
         };
       });
     });
+    if (!active || epoch !== sessionEpoch) return;
     const featureChoiceRt = Math.round(performance.now() - choiceStart);
     appendTrial({
       correct: hit || correctRejection,
@@ -763,15 +788,17 @@ async function runFaceTrial(trial) {
 }
 
 async function showPracticeFeedback(correct) {
+  const epoch = sessionEpoch;
   if (!active) return;
   panel(
     correct ? "判断正确" : "再留意一下",
     '<p>' + (correct ? "很好，继续保持。" : "练习阶段可以继续熟悉刺激和按键方式。") + '</p>',
     '<button class="task-button" id="practice-continue">继续</button>'
   );
-  await new Promise((resolve) => {
+  await waitForTaskAction((resolve) => {
     $("#practice-continue").onclick = resolve;
   });
+  return active && epoch === sessionEpoch;
 }
 
 function finishTask() {
@@ -877,6 +904,8 @@ function downloadAllLocalData() {
 }
 
 function exitTask() {
+  cancelPendingTaskActions();
+  sessionEpoch += 1;
   persistSessionGaze();
   active = false;
   currentTrialContext = null;
