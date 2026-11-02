@@ -393,10 +393,44 @@ function makeFaceTrials(repetitions) {
   return shuffle(trials);
 }
 
+function makePosnerPracticeTrials() {
+  const trials = [];
+  ["外周线索", "中央箭头"].forEach((cueType, cueIndex) => {
+    ["有效", "无效", "中性"].forEach((validity, index) => {
+      const targetSide = (cueIndex + index) % 2 === 0 ? "左" : "右";
+      trials.push({
+        cue_type: cueType, validity,
+        soa_ms: (cueIndex + index) % 2 === 0 ? 200 : 600,
+        target_side: targetSide,
+        cue_side: validity === "中性" ? "中性" :
+          (validity === "有效" ? targetSide : (targetSide === "左" ? "右" : "左"))
+      });
+    });
+  });
+  return shuffle(trials);
+}
+
+function makeSearchPracticeTrials() {
+  const examples = [
+    { set_size: 8, target_present: true },
+    { set_size: 16, target_present: false },
+    { set_size: 24, target_present: true },
+    { set_size: 16, target_present: false }
+  ];
+  return shuffle(["特征搜索", "结合搜索"].flatMap((searchType) =>
+    examples.map((example) => Object.assign({ search_type: searchType }, example))
+  ));
+}
+
 function makeTrials(id, isPractice) {
-  if (id === "posner") return makePosnerTrials(isPractice ? 1 : 4);
-  if (id === "search") return makeSearchTrials(isPractice ? 1 : 4);
-  return makeFaceTrials(isPractice ? 1 : 4);
+  if (!isPractice) {
+    if (id === "posner") return makePosnerTrials(4);
+    if (id === "search") return makeSearchTrials(4);
+    return makeFaceTrials(4);
+  }
+  if (id === "posner") return makePosnerPracticeTrials();
+  if (id === "search") return makeSearchPracticeTrials();
+  return makeFaceTrials(1);
 }
 
 function beginPractice() {
@@ -553,7 +587,7 @@ async function runPosnerTrial(trial, epoch) {
   target.textContent = "●";
   const targetOnset = performance.now();
   const targetOnsetIso = new Date().toISOString();
-  const response = await waitForKey(["a", "l"], 1800);
+  const response = await waitForKey(["a", "l"], phase === "practice" ? 1500 : 1800);
   if (!active || epoch !== sessionEpoch) return;
   const responseSide = response.key === "a" ? "左" : response.key === "l" ? "右" : "";
   const correct = response.status === "responded" && responseSide === trial.target_side;
@@ -683,7 +717,7 @@ async function runSearchTrial(trial, epoch) {
 
   const targetOnset = performance.now();
   const targetOnsetIso = new Date().toISOString();
-  const response = await waitForKey(["f", "j"], 5000);
+  const response = await waitForKey(["f", "j"], phase === "practice" ? 3500 : 5000);
   if (!active || epoch !== sessionEpoch) return;
   const responsePresent = response.key === "f" ? true : response.key === "j" ? false : null;
   const correct = responsePresent !== null && responsePresent === trial.target_present;
@@ -747,7 +781,7 @@ async function runFaceTrial(trial, epoch) {
   let flickerCount = 0;
   const trialStart = performance.now();
   const trialStartIso = new Date().toISOString();
-  const deadline = trialStart + 12000;
+  const deadline = trialStart + (phase === "practice" ? 8000 : 12000);
   const fileA = FACE_BASE + trial.file_a;
   const fileB = FACE_BASE + trial.file_b;
 
@@ -887,11 +921,19 @@ async function showPracticeFeedback(correct) {
   if (!active) return;
   panel(
     correct ? "判断正确" : "再留意一下",
-    '<p>' + (correct ? "很好，继续保持。" : "练习阶段可以继续熟悉刺激和按键方式。") + '</p>',
+    '<p>' + (correct ? "很好，继续保持。" : "练习阶段可以继续熟悉刺激和按键方式。") + '</p>' +
+    '<p class="task-muted">按空格或点击下方按钮进入下一题。</p>',
     '<button class="task-button" id="practice-continue">继续</button>'
   );
   await waitForTaskAction((resolve) => {
     $("#practice-continue").onclick = resolve;
+    const onSpace = (event) => {
+      if (event.code !== "Space" || event.repeat) return;
+      event.preventDefault();
+      resolve();
+    };
+    window.addEventListener("keydown", onSpace);
+    return () => window.removeEventListener("keydown", onSpace);
   });
   return active && epoch === sessionEpoch;
 }
