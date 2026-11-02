@@ -47,7 +47,7 @@
 }
 .search-scatter{
   position:relative;
-  width:min(760px,94vw);
+  width:min(680px,94vw);
   height:clamp(270px,48vh,430px);
   margin:20px auto 22px;
   overflow:hidden;
