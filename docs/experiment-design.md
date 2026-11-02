@@ -23,6 +23,12 @@
 - 外周线索与中央箭头线索效应的差异；
 - 不同 SOA 下线索效应的变化。
 
+### 键盘操作
+- 通过 Tab 移动焦点、Enter 确认；知情同意复选框使用 Space 勾选，Esc 返回或退出。
+- Posner：A = 左侧，L = 右侧；视觉搜索：F = 存在，J = 不存在。
+- 面孔变化检测：Space = 发现变化，N = 没有变化；发现变化后按 1–4 选择面部部位。
+- 如启用眼动校准，可按 1–9 依次选择九个校准点；实验结果页按 1–4 导出或返回。
+
 ### 逐试次字段
 `cue_type`、`cue_validity`、`cue_side`、`target_side`、`soa_requested_ms`、`soa_actual_ms`、`response_key`、`response_side`、`response_status`、`correct`、`rt_ms`。
 
