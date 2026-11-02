@@ -714,12 +714,6 @@ async function runFaceTrial(trial) {
     appendTrial({
       correct: hit || correctRejection,
       stimulus_onset_time: trialStartIso,
-      correct: hit || correctRejection,
-      stimulus_onset_time: trialStartIso,
-      correct: hit || correctRejection,
-      stimulus_onset_time: trialStartIso,
-      correct: hit || correctRejection,
-      stimulus_onset_time: trialStartIso,
       change_present: trial.changed,
       change_feature: trial.feature,
       file_a: trial.file_a,
@@ -737,6 +731,8 @@ async function runFaceTrial(trial) {
     });
   } else {
     appendTrial({
+      correct: hit || correctRejection,
+      stimulus_onset_time: trialStartIso,
       change_present: trial.changed,
       change_feature: trial.feature,
       file_a: trial.file_a,
