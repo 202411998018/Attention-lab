@@ -71,6 +71,7 @@ let sessionEpoch = 0;
 let pendingKeyCancel = null;
 let pendingActionCancel = null;
 let dataDbPromise = null;
+let dataDbAvailable = null;
 let dbFlushPromise = null;
 let pendingDbWrites = { sessions: [], trials: [], gaze: [], events: [] };
 let dbFlushTimer = null;
@@ -218,16 +219,16 @@ function openDataDB() {
   dataDbPromise = new Promise((resolve) => {
     let request;
     try { request = indexedDB.open(DB_NAME, DB_VERSION); }
-    catch (_) { resolve(null); return; }
+    catch (_) { dataDbAvailable = false; resolve(null); return; }
     request.onupgradeneeded = () => {
       const db = request.result;
       DB_STORES.forEach((name) => {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "record_id" });
       });
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-    request.onblocked = () => resolve(null);
+    request.onsuccess = () => { dataDbAvailable = true; resolve(request.result); };
+    request.onerror = () => { dataDbAvailable = false; resolve(null); };
+    request.onblocked = () => { dataDbAvailable = false; resolve(null); };
   });
   return dataDbPromise;
 }
@@ -271,6 +272,7 @@ async function flushPendingData() {
       }
       transaction.oncomplete = () => resolve(true);
       const restore = () => {
+        dataDbAvailable = false;
         stores.forEach((name) => { pendingDbWrites[name] = batch[name].concat(pendingDbWrites[name]); });
         resolve(false);
       };
@@ -297,8 +299,9 @@ async function readDbStore(store) {
   });
 }
 
-function persistGazeFallbackChunk() {
+function persistGazeFallbackChunk(force) {
   if (!gazeFallbackBuffer.length || !sessionId) return;
+  if (!force && dataDbAvailable !== false) return;
   const chunk = gazeFallbackBuffer.splice(0, GAZE_CHUNK_SIZE);
   const key = GAZE_CHUNK_PREFIX + sessionId + ":" + String(gazeChunkIndex++).padStart(5, "0");
   try { localStorage.setItem(key, JSON.stringify(chunk)); }
@@ -436,7 +439,8 @@ function recordGazeSample(data, webgazerElapsedTime) {
   const now = performance.now();
   const width = window.innerWidth || 0;
   const height = window.innerHeight || 0;
-  const valid = !!data && Number.isFinite(Number(data.x)) && Number.isFinite(Number(data.y));
+  const valid = !!data && typeof data.x === "number" && Number.isFinite(data.x) &&
+    typeof data.y === "number" && Number.isFinite(data.y);
   const x = valid ? Number(data.x) : null;
   const y = valid ? Number(data.y) : null;
   const sample = {
@@ -450,7 +454,7 @@ function recordGazeSample(data, webgazerElapsedTime) {
     timestamp_utc: new Date().toISOString(),
     performance_ms: Number(now.toFixed(3)),
     elapsed_trial_ms: Number((now - context.started_perf).toFixed(3)),
-    webgazer_elapsed_ms: Number.isFinite(Number(webgazerElapsedTime)) ? Number(webgazerElapsedTime) : "",
+    webgazer_elapsed_ms: typeof webgazerElapsedTime === "number" && Number.isFinite(webgazerElapsedTime) ? webgazerElapsedTime : "",
     x_px: x === null ? "" : x,
     y_px: y === null ? "" : y,
     x_norm: x === null || !width ? "" : Number((x / width).toFixed(6)),
@@ -621,18 +625,19 @@ async function startEyeCalibration() {
         completed += 1;
         $("#eye-count").textContent = "已完成 " + completed + " / 9";
         if (completed === 9) {
+          recordEvent("eye_calibration_completed", { calibration_points_completed: completed });
           eyeCalibrationContext = null;
           updateSessionMeta({
             eye_tracking_status: "calibration_completed",
             calibration_points_completed: completed,
             calibration_completed_at: new Date().toISOString()
           });
-          recordEvent("eye_calibration_completed", { calibration_points_completed: completed });
           setTimeout(beginInstructions, 500);
         }
       };
     });
   } catch (error) {
+    stopEyeTracking();
     eyeEnabled = false;
     eyeStarted = false;
     eyeCalibrationContext = null;
@@ -911,7 +916,6 @@ async function runPosnerTrial(trial, epoch) {
   recordEvent("fixation_onset");
 
   const cueOnset = performance.now();
-  recordEvent("cue_onset", { cue_type: trial.cue_type, cue_side: trial.cue_side, cue_validity: trial.validity, soa_requested_ms: trial.soa_ms });
   if (trial.cue_type === "外周线索") {
     if (trial.cue_side === "左" || trial.cue_side === "中性") left.classList.add("is-cued");
     if (trial.cue_side === "右" || trial.cue_side === "中性") right.classList.add("is-cued");
@@ -919,6 +923,7 @@ async function runPosnerTrial(trial, epoch) {
     center.textContent = trial.cue_side === "中性" ? "↔" : (trial.cue_side === "左" ? "←" : "→");
     center.classList.add("cue-arrow");
   }
+  recordEvent("cue_onset", { cue_type: trial.cue_type, cue_side: trial.cue_side, cue_validity: trial.validity, soa_requested_ms: trial.soa_ms });
   await sleep(100);
   if (!active || epoch !== sessionEpoch) return;
   left.classList.remove("is-cued");
@@ -1402,7 +1407,7 @@ function csvCell(value) {
 }
 
 function persistSessionGaze() {
-  persistGazeFallbackChunk();
+  persistGazeFallbackChunk(true);
   gazePersisted = true;
   flushPendingData();
 }
