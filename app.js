@@ -667,6 +667,13 @@ async function runFaceTrial(trial, epoch) {
     (trial.changed ? "CHANGE TRIAL" : "NO-CHANGE TRIAL") + '</p>' + faceStimulusMarkup() + '</div>';
   const image = $("#face-flicker-image");
   let decision = null;
+  let decisionTime = null;
+  let resolveDecision;
+  const decisionSignal = new Promise((resolve) => { resolveDecision = resolve; });
+  const waitForDecisionOr = (milliseconds) => Promise.race([
+    sleep(milliseconds),
+    decisionSignal
+  ]);
   let flickerCount = 0;
   const trialStart = performance.now();
   const trialStartIso = new Date().toISOString();
@@ -684,6 +691,8 @@ async function runFaceTrial(trial, epoch) {
   const stop = (value) => {
     if (decision) return;
     decision = value;
+    decisionTime = performance.now();
+    resolveDecision();
   };
   $("#face-found").onclick = () => stop("found");
   $("#face-no-change").onclick = () => stop("no_change");
@@ -701,16 +710,20 @@ async function runFaceTrial(trial, epoch) {
   while (active && !decision && performance.now() < deadline) {
     setVisible(showA ? fileA : fileB);
     flickerCount++;
-    await sleep(250);
+    await waitForDecisionOr(250);
     if (!active || decision) break;
     setBlank();
-    await sleep(80);
+    await waitForDecisionOr(80);
+    if (decision) break;
     showA = !showA;
   }
   window.removeEventListener("keydown", keyboard);
   if (!active || epoch !== sessionEpoch) return;
-  if (!decision) decision = "timeout";
-  const decisionRt = decision === "timeout" ? "" : Math.round(performance.now() - trialStart);
+  if (!decision) {
+    decision = "timeout";
+    decisionTime = performance.now();
+  }
+  const decisionRt = decision === "timeout" ? "" : Math.round(decisionTime - trialStart);
   const hit = trial.changed && decision === "found";
   const falseAlarm = !trial.changed && decision === "found";
   const miss = trial.changed && decision === "no_change";
