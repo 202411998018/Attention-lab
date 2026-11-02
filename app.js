@@ -230,7 +230,7 @@ function openDataDB() {
     };
     request.onsuccess = () => { dataDbAvailable = true; resolve(request.result); };
     request.onerror = () => { dataDbAvailable = false; resolve(null); };
-    request.onblocked = () => { dataDbAvailable = false; resolve(null); };
+    request.onblocked = () => { dataDbAvailable = false; };
   });
   return dataDbPromise;
 }
@@ -274,13 +274,17 @@ async function flushPendingData() {
       }
       transaction.oncomplete = () => {
         dataDbAvailable = true;
-        if (batch.gaze && batch.gaze.length) {
-          const highestSaved = Math.max.apply(null, batch.gaze.map((row) => Number(row.sample_index) + 1));
+        const currentSessionGaze = (batch.gaze || []).filter((row) => row.session_id === sessionId);
+        if (currentSessionGaze.length) {
+          const highestSaved = Math.max.apply(null, currentSessionGaze.map((row) => Number(row.sample_index) + 1));
           if (Number.isFinite(highestSaved)) gazeFallbackPersistedIndex = Math.max(gazeFallbackPersistedIndex, highestSaved);
         }
         resolve(true);
       };
+      let restored = false;
       const restore = () => {
+        if (restored) return;
+        restored = true;
         dataDbAvailable = false;
         stores.forEach((name) => { pendingDbWrites[name] = batch[name].concat(pendingDbWrites[name]); });
         resolve(false);
@@ -508,15 +512,16 @@ async function exportAllLocalBackup(incompleteOnly) {
     return;
   }
   const ids = new Set(chosenSessions.map((row) => row.session_id));
+  const includeSessionRow = (row) => !incompleteOnly || ids.has(row.session_id);
   downloadJSON({
     schema_version: 2,
     exported_at: new Date().toISOString(),
     storage_scope: "This browser and device only; not uploaded to a server.",
     filter: incompleteOnly ? "incomplete_sessions" : "all_local_records",
     sessions: chosenSessions,
-    trials: trials.filter((row) => ids.has(row.session_id)),
-    gaze: gaze.filter((row) => ids.has(row.session_id)),
-    events: events.filter((row) => ids.has(row.session_id))
+    trials: trials.filter(includeSessionRow),
+    gaze: gaze.filter(includeSessionRow),
+    events: events.filter(includeSessionRow)
   }, incompleteOnly ? "attention-lab-incomplete-sessions.json" : "attention-lab-full-backup.json");
 }
 
@@ -1503,6 +1508,11 @@ function handlePageHide() {
     });
     recordEvent("session_interrupted", { end_reason: "pagehide" });
   }
+  active = false;
+  sessionEpoch += 1;
+  cancelPendingTaskActions();
+  currentTrialContext = null;
+  eyeCalibrationContext = null;
   persistSessionGaze();
   stopEyeTracking();
   flushPendingData();
