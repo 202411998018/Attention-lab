@@ -6,10 +6,10 @@ An interactive cognitive science laboratory for exploring visual attention.
 Attention Lab is a browser-based educational platform featuring three classic attention paradigms:
 
 - **Posner Spatial Cueing** — spatial orienting and cue validity.
-- **Change Blindness** — visual change detection using a flicker-style task.
-- **Visual Search** — feature and conjunction search.
+- **Face Flicker Change Detection** — face-feature change detection using a flicker-style task.
+- **Visual Search / Feature Integration** — feature and conjunction search across set sizes.
 
-The site includes experiment introductions, participant setup, practice and task flows, trial-level behavioral recording, local result summaries, and CSV export.
+The site includes participant setup, practice and formal trials, balanced condition generation, response-time and accuracy recording, local trial-level persistence, session summaries, and CSV export.
 
 ## Run locally
 
