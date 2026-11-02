@@ -726,6 +726,7 @@ async function runFaceTrial(trial) {
       feature_choice_correct: trial.changed ? chosenFeature === trial.feature : false,
       feature_choice_rt_ms: featureChoiceRt,
       decision_rt_ms: decisionRt,
+      rt_ms: decisionRt === "" ? "" : Number(decisionRt),
       response_status: "responded",
       flicker_presentations: flickerCount
     });
@@ -745,6 +746,7 @@ async function runFaceTrial(trial) {
       feature_choice_correct: "",
       feature_choice_rt_ms: "",
       decision_rt_ms: decisionRt,
+      rt_ms: decisionRt === "" ? "" : Number(decisionRt),
       response_status: decision === "timeout" ? "timeout" : "responded",
       flicker_presentations: flickerCount
     });
