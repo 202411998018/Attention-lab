@@ -1329,13 +1329,16 @@ function finishTask() {
     .map((row) => row.rt_ms)
     .sort((a, b) => a - b);
   const median = correctRts.length ? correctRts[Math.floor(correctRts.length / 2)] : null;
-  const sessions = readStoredArray(STORAGE_SESSIONS);
-  const currentSession = sessions.find((item) => item.session_id === sessionId);
-  if (currentSession) {
-    currentSession.status = "completed";
-    currentSession.completed_at = new Date().toISOString();
-    writeStoredArray(STORAGE_SESSIONS, sessions);
-  }
+  updateSessionMeta({
+    status: "completed",
+    completed_at: new Date().toISOString(),
+    completed_phase: phase,
+    trials_saved: sessionRows.length,
+    gaze_samples_saved: sessionGazeIndex
+  });
+  recordEvent("session_completed", { trials_saved: sessionRows.length, gaze_samples_saved: sessionGazeIndex });
+  persistSessionGaze();
+  flushPendingData();
   const storageWarningHtml = sessionWarnings.length
     ? '<p class="task-muted">注意：本地存储出现问题，建议立即下载本次 CSV 备份。详情：' + escapeHtml(sessionWarnings.join("；")) + '</p>'
     : "";
@@ -1376,6 +1379,7 @@ function finishTask() {
   $("#download-all").onclick = downloadAllLocalData;
   $("#finish-close").onclick = exitTask;
   persistSessionGaze();
+  refreshDataArchive();
 }
 
 function csvCell(value) {
@@ -1385,10 +1389,21 @@ function csvCell(value) {
 }
 
 function persistSessionGaze() {
-  if (gazePersisted || !sessionGaze.length) return;
-  const storedGaze = readStoredArray(STORAGE_GAZE).concat(sessionGaze);
-  writeStoredArray(STORAGE_GAZE, storedGaze);
+  persistGazeFallbackChunk();
   gazePersisted = true;
+  flushPendingData();
+}
+
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function downloadCSV(data, filename) {
@@ -1419,15 +1434,54 @@ function downloadAllLocalData() {
 }
 
 function exitTask() {
+  if (sessionMeta && sessionMeta.status === "in_progress") {
+    interruptCurrentTrial("user_exit");
+    updateSessionMeta({
+      status: "abandoned",
+      ended_at: new Date().toISOString(),
+      end_reason: "user_exit"
+    });
+    recordEvent("session_abandoned", { end_reason: "user_exit" });
+  }
   cancelPendingTaskActions();
   sessionEpoch += 1;
   persistSessionGaze();
   active = false;
+  eyeCalibrationContext = null;
   currentTrialContext = null;
   stopEyeTracking();
   eyeEnabled = false;
+  flushPendingData();
   taskOverlay.classList.remove("open");
   taskOverlay.setAttribute("aria-hidden", "true");
   $("#task-progress").style.width = "0%";
+  refreshDataArchive();
 }
+
+function handlePageHide() {
+  if (sessionMeta && sessionMeta.status === "in_progress") {
+    interruptCurrentTrial("pagehide");
+    updateSessionMeta({
+      status: "interrupted",
+      interrupted_at: new Date().toISOString(),
+      end_reason: "pagehide"
+    });
+    recordEvent("session_interrupted", { end_reason: "pagehide" });
+  }
+  persistSessionGaze();
+  flushPendingData();
+}
+
+window.addEventListener("pagehide", handlePageHide);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    persistGazeFallbackChunk();
+    flushPendingData();
+  }
+});
+setInterval(() => {
+  persistGazeFallbackChunk();
+  flushPendingData();
+}, 1000);
+
 
