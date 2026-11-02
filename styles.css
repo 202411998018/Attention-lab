@@ -93,3 +93,16 @@
 /* Static keyboard response cues for the face-change task */
 .face-response-buttons .response-key-hint{display:inline-flex;align-items:center;gap:8px;cursor:default;pointer-events:none}
 .response-key-hint kbd{font:800 1em/1 Arial,Helvetica,sans-serif;padding:3px 8px;border:1px solid currentColor;border-radius:5px}
+
+/* Local data archive */
+.data-archive{padding:76px 0 92px}
+.data-archive-panel{background:#e9e5da;border:1px solid #d5d0c3;border-radius:18px;padding:28px 30px}
+.data-archive-summary{font-size:14px;line-height:1.7;color:#34443a;margin:0 0 22px}
+.data-export-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.data-export-button{min-height:48px;padding:12px 16px;border:1px solid #9aa397;border-radius:8px;background:#f6f4ed;color:#29382f;font:600 13px/1.4 inherit;cursor:pointer;transition:background .2s,border-color .2s}
+.data-export-button:hover{background:#fff;border-color:#586c5c}
+.data-export-primary{background:#2e4035;color:#f7f4eb;border-color:#2e4035}
+.data-export-primary:hover{background:#405849;color:#fff}
+.data-archive-note{margin:20px 0 0;color:#737b70;font-size:12px;line-height:1.8}
+@media(max-width:700px){.data-archive{padding:58px 0}.data-archive-panel{padding:20px 18px}.data-export-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:430px){.data-export-grid{grid-template-columns:1fr}}
