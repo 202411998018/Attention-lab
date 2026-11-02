@@ -355,7 +355,13 @@ function mergeRecordSets() {
   let legacyIndex = 0;
   Array.from(arguments).forEach((set) => (set || []).forEach((row) => {
     if (!row) return;
-    map.set(row.record_id || "legacy:" + legacyIndex++, row);
+    const key = row.record_id || "legacy:" + legacyIndex++;
+    const previous = map.get(key);
+    const rowIsNewer = !previous || (
+      row.updated_at &&
+      (!previous.updated_at || new Date(row.updated_at).getTime() >= new Date(previous.updated_at).getTime())
+    );
+    if (rowIsNewer || !previous.updated_at) map.set(key, row);
   }));
   return Array.from(map.values());
 }
