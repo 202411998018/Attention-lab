@@ -82,7 +82,6 @@
 
 
 /* Keyboard-first operation and visible focus for every interactive control */
-.task-keyboard-hint{margin:22px 0 0!important;font-size:10px!important;color:#92a094!important;letter-spacing:.04em}
 .task-button:focus-visible,.task-top button:focus-visible,.modal-close:focus-visible,
 .card-link:focus-visible,.menu-toggle:focus-visible,.button:focus-visible,
 .eye-dot:focus-visible,input:focus-visible,a:focus-visible{
@@ -90,3 +89,7 @@
   outline-offset:4px;
 }
 .eye-dot{color:#26342d;font-size:10px;font-weight:800}
+
+/* Static keyboard response cues for the face-change task */
+.face-response-buttons .response-key-hint{display:inline-flex;align-items:center;gap:8px;cursor:default;pointer-events:none}
+.response-key-hint kbd{font:800 1em/1 Arial,Helvetica,sans-serif;padding:3px 8px;border:1px solid currentColor;border-radius:5px}
