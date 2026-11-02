@@ -116,6 +116,25 @@
       </div>
     </section>
 
+
+    <section class="data-archive section-shell" id="data-records">
+      <div class="section-heading">
+        <div><p class="eyebrow">LOCAL DATA ARCHIVE</p><h2>实验记录与<em>数据导出。</em></h2></div>
+        <p>实验数据会在本机浏览器中持续保存。即使实验中断，也可以在这里找回已经记录的部分。</p>
+      </div>
+      <div class="data-archive-panel">
+        <p class="data-archive-summary" id="archive-summary">正在读取本机记录…</p>
+        <div class="data-export-grid">
+          <button class="data-export-button data-export-primary" id="export-all-backup">导出全部数据备份（JSON）</button>
+          <button class="data-export-button" id="export-incomplete-backup">仅导出未完成实验（JSON）</button>
+          <button class="data-export-button" id="export-trials-csv">导出试次数据（CSV）</button>
+          <button class="data-export-button" id="export-gaze-csv">导出眼动样本（CSV）</button>
+          <button class="data-export-button" id="export-events-csv">导出事件时间戳（CSV）</button>
+          <button class="data-export-button" id="export-sessions-csv">导出 Session 信息（CSV）</button>
+        </div>
+        <p class="data-archive-note">隐私说明：数据保存在当前浏览器和设备，不会自动上传 GitHub 或其他服务器。请在清理浏览器数据、更换设备前导出备份。眼动数据仅在参与者主动同意并成功启用采集后产生。</p>
+      </div>
+    </section>
     <section class="science-section section-shell" id="science">
       <div class="section-heading"><div><p class="eyebrow">THE SCIENCE OF ATTENTION</p><h2>Look closer.<br><em>Think deeper.</em></h2></div><p>从经典范式出发，连接理论、实验与数据。</p></div>
       <div class="science-grid">
@@ -126,7 +145,7 @@
     </section>
   </main>
 
-  <footer class="site-footer" id="about"><a class="brand" href="#home"><span class="brand-mark">a.</span><span>ATTENTION <i>LAB</i></span></a><p>看见注意力，理解认知。<br><small>Interactive Cognitive Science Laboratory</small></p><div><a href="#experiments">Experiments</a><a href="#science">The science</a><a href="README.md">Project notes</a></div><span class="footer-copy">© 2026 ATTENTION LAB</span></footer>
+  <footer class="site-footer" id="about"><a class="brand" href="#home"><span class="brand-mark">a.</span><span>ATTENTION <i>LAB</i></span></a><p>看见注意力，理解认知。<br><small>Interactive Cognitive Science Laboratory</small></p><div><a href="#experiments">Experiments</a><a href="#science">The science</a><a href="#data-records">Data archive</a><a href="README.md">Project notes</a></div><span class="footer-copy">© 2026 ATTENTION LAB</span></footer>
 
   <div class="modal-backdrop" id="experiment-modal" aria-hidden="true">
     <section class="experiment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
