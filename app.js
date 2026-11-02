@@ -501,6 +501,7 @@ function recordGazeSample(data, webgazerElapsedTime) {
   if (context === currentTrialContext) {
     context.gaze_samples += 1;
     if (valid) context.gaze_valid_samples += 1;
+    if (context.gaze_samples % 25 === 0) updateCurrentTrial({});
   }
 }
 
