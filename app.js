@@ -61,6 +61,7 @@ let eyeStarted = false;
 let currentTrialContext = null;
 let sessionStartIso = "";
 let sessionWarnings = [];
+let gazePersisted = false;
 
 document.querySelectorAll("[data-open]").forEach((button) => {
   button.addEventListener("click", () => openModal(button.dataset.open));
@@ -178,6 +179,9 @@ function startNewSession() {
   sessionRows = [];
   sessionGaze = [];
   sessionWarnings = [];
+  gazePersisted = false;
+  eyeEnabled = false;
+  eyeStarted = false;
   sessionStartIso = new Date().toISOString();
   const sessions = readStoredArray(STORAGE_SESSIONS);
   sessions.push({
@@ -520,6 +524,7 @@ async function runPosnerTrial(trial) {
   target.classList.add("is-target");
   target.textContent = "●";
   const targetOnset = performance.now();
+  const targetOnsetIso = new Date().toISOString();
   const response = await waitForKey(["a", "l"], 1800);
   if (!active) return;
   const responseSide = response.key === "a" ? "左" : response.key === "l" ? "右" : "";
@@ -530,6 +535,8 @@ async function runPosnerTrial(trial) {
     cue_side: trial.cue_side,
     target_side: trial.target_side,
     soa_requested_ms: trial.soa_ms,
+    cue_onset_time: new Date(Date.now() - Math.round(targetOnset - cueOnset)).toISOString(),
+    target_onset_time: targetOnsetIso,
     soa_actual_ms: Math.round(targetOnset - cueOnset),
     response_key: response.key || "",
     response_side: responseSide,
@@ -559,7 +566,8 @@ function createSearchArray(trial) {
         : { letter: "T", color: "green", is_target: false });
     }
   }
-  return { items: shuffle(items), target_index: targetIndex };
+  const shuffledItems = shuffle(items);
+  return { items: shuffledItems, target_index: shuffledItems.findIndex((item) => item.is_target) };
 }
 
 async function runSearchTrial(trial) {
@@ -582,6 +590,7 @@ async function runSearchTrial(trial) {
       item.letter + '</span>'
     ).join("") + '</div><p class="task-muted">请尽量又快又准确地判断</p></div>';
   const targetOnset = performance.now();
+  const targetOnsetIso = new Date().toISOString();
   const response = await waitForKey(["f", "j"], 5000);
   if (!active) return;
   const responsePresent = response.key === "f" ? true : response.key === "j" ? false : null;
@@ -590,6 +599,7 @@ async function runSearchTrial(trial) {
     search_type: trial.search_type,
     set_size: trial.set_size,
     target_present: trial.target_present,
+    target_onset_time: targetOnsetIso,
     target_position: generated.target_index,
     stimulus_layout: JSON.stringify(layout),
     response_key: response.key || "",
@@ -635,6 +645,7 @@ async function runFaceTrial(trial) {
   let decision = null;
   let flickerCount = 0;
   const trialStart = performance.now();
+  const trialStartIso = new Date().toISOString();
   const deadline = trialStart + 12000;
   const fileA = FACE_BASE + trial.file_a;
   const fileB = FACE_BASE + trial.file_b;
@@ -701,6 +712,14 @@ async function runFaceTrial(trial) {
     });
     const featureChoiceRt = Math.round(performance.now() - choiceStart);
     appendTrial({
+      correct: hit || correctRejection,
+      stimulus_onset_time: trialStartIso,
+      correct: hit || correctRejection,
+      stimulus_onset_time: trialStartIso,
+      correct: hit || correctRejection,
+      stimulus_onset_time: trialStartIso,
+      correct: hit || correctRejection,
+      stimulus_onset_time: trialStartIso,
       change_present: trial.changed,
       change_feature: trial.feature,
       file_a: trial.file_a,
@@ -816,16 +835,20 @@ function finishTask() {
   };
   $("#download-all").onclick = downloadAllLocalData;
   $("#finish-close").onclick = exitTask;
-  if (sessionGaze.length) {
-    const storedGaze = readStoredArray(STORAGE_GAZE).concat(sessionGaze);
-    writeStoredArray(STORAGE_GAZE, storedGaze);
-  }
+  persistSessionGaze();
 }
 
 function csvCell(value) {
   const text = value === null || value === undefined ? "" :
     (typeof value === "object" ? JSON.stringify(value) : String(value));
   return '"' + text.replace(/"/g, '""') + '"';
+}
+
+function persistSessionGaze() {
+  if (gazePersisted || !sessionGaze.length) return;
+  const storedGaze = readStoredArray(STORAGE_GAZE).concat(sessionGaze);
+  writeStoredArray(STORAGE_GAZE, storedGaze);
+  gazePersisted = true;
 }
 
 function downloadCSV(data, filename) {
@@ -856,6 +879,7 @@ function downloadAllLocalData() {
 }
 
 function exitTask() {
+  persistSessionGaze();
   active = false;
   currentTrialContext = null;
   stopEyeTracking();
