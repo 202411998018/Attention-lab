@@ -270,7 +270,7 @@ async function flushPendingData() {
         resolve(false);
         return;
       }
-      transaction.oncomplete = () => resolve(true);
+      transaction.oncomplete = () => { dataDbAvailable = true; resolve(true); };
       const restore = () => {
         dataDbAvailable = false;
         stores.forEach((name) => { pendingDbWrites[name] = batch[name].concat(pendingDbWrites[name]); });
@@ -812,6 +812,8 @@ function makeTrials(id, isPractice) {
 
 function beginPractice() {
   phase = "practice";
+  updateSessionMeta({ phase: "practice" });
+  recordEvent("phase_started", { phase: "practice" });
   trialList = makeTrials(selected.id, true);
   trialIndex = 0;
   runNext();
@@ -819,6 +821,8 @@ function beginPractice() {
 
 function beginFormal() {
   phase = "formal";
+  updateSessionMeta({ phase: "formal" });
+  recordEvent("phase_started", { phase: "formal" });
   trialList = makeTrials(selected.id, false);
   trialIndex = 0;
   runNext();
@@ -1351,6 +1355,7 @@ function finishTask() {
     status: "completed",
     completed_at: new Date().toISOString(),
     completed_phase: phase,
+    eye_tracking_status: eyeEnabled ? "completed" : (sessionMeta && sessionMeta.eye_tracking_status) || "not_enabled",
     trials_saved: sessionRows.length,
     gaze_samples_saved: sessionGazeIndex
   });
@@ -1457,7 +1462,8 @@ function exitTask() {
     updateSessionMeta({
       status: "abandoned",
       ended_at: new Date().toISOString(),
-      end_reason: "user_exit"
+      end_reason: "user_exit",
+      eye_tracking_status: eyeStarted ? "stopped_early" : sessionMeta.eye_tracking_status
     });
     recordEvent("session_abandoned", { end_reason: "user_exit" });
   }
@@ -1482,11 +1488,13 @@ function handlePageHide() {
     updateSessionMeta({
       status: "interrupted",
       interrupted_at: new Date().toISOString(),
-      end_reason: "pagehide"
+      end_reason: "pagehide",
+      eye_tracking_status: eyeStarted ? "interrupted" : sessionMeta.eye_tracking_status
     });
     recordEvent("session_interrupted", { end_reason: "pagehide" });
   }
   persistSessionGaze();
+  stopEyeTracking();
   flushPendingData();
 }
 
