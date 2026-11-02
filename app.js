@@ -541,6 +541,8 @@ function startNewSession() {
 function eyeSetup() {
   const available = !!(window.webgazer && typeof window.webgazer.begin === "function");
   if (!available) {
+    updateSessionMeta({ eye_consent: false, eye_tracking_status: "unavailable" });
+    recordEvent("eye_tracking_unavailable");
     panel(
       "行为实验可正常进行",
       '<p>当前仓库没有安装本地 WebGazer 文件，因此本次无法启动摄像头眼动追踪。三个行为实验和试次数据记录不受影响。</p>' +
@@ -555,8 +557,16 @@ function eyeSetup() {
     '<p>如果设备具有摄像头且浏览器允许访问，可以启用基于摄像头的注视估计。眼动数据仅保存在本机，精度需要在正式使用前单独验证。</p>',
     '<div class="task-choice"><button class="task-button" id="eye-enable">启用并校准</button><button class="task-button secondary" id="eye-skip">跳过</button></div>'
   );
-  $("#eye-enable").onclick = startEyeCalibration;
-  $("#eye-skip").onclick = beginInstructions;
+  $("#eye-enable").onclick = () => {
+    updateSessionMeta({ eye_consent: true, eye_tracking_status: "consented" });
+    recordEvent("eye_consent_granted");
+    startEyeCalibration();
+  };
+  $("#eye-skip").onclick = () => {
+    updateSessionMeta({ eye_consent: false, eye_tracking_status: "declined" });
+    recordEvent("eye_consent_declined");
+    beginInstructions();
+  };
 }
 
 async function startEyeCalibration() {
@@ -564,20 +574,10 @@ async function startEyeCalibration() {
     await window.webgazer.begin();
     eyeEnabled = true;
     eyeStarted = true;
-    window.webgazer.setGazeListener((data) => {
-      if (!data || !active || !currentTrialContext) return;
-      sessionGaze.push({
-        session_id: sessionId,
-        participant,
-        experiment: selected.id,
-        trial_number: currentTrialContext.trial_number,
-        phase: currentTrialContext.phase,
-        x: Number(data.x),
-        y: Number(data.y),
-        timestamp: new Date().toISOString(),
-        elapsed_ms: Math.round(performance.now() - currentTrialContext.started_perf)
-      });
-    });
+    eyeCalibrationContext = { phase: "calibration", trial_number: "", started_perf: performance.now() };
+    updateSessionMeta({ eye_tracking_status: "calibrating", eye_started_at: new Date().toISOString() });
+    recordEvent("eye_tracking_started");
+    window.webgazer.setGazeListener((data, elapsedTime) => recordGazeSample(data, elapsedTime));
     const points = [];
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 3; col++) points.push([(col + 1) / 4, (row + 1) / 4]);
@@ -598,16 +598,37 @@ async function startEyeCalibration() {
             window.webgazer.recordScreenPosition(window.innerWidth * point[0], window.innerHeight * point[1], "click");
           }
         } catch (_) {}
+        recordEvent("calibration_point", {
+          calibration_point: index + 1,
+          target_x_px: Math.round(window.innerWidth * point[0]),
+          target_y_px: Math.round(window.innerHeight * point[1])
+        });
         dot.disabled = true;
         dot.style.opacity = ".25";
         completed += 1;
         $("#eye-count").textContent = "已完成 " + completed + " / 9";
-        if (completed === 9) setTimeout(beginInstructions, 500);
+        if (completed === 9) {
+          eyeCalibrationContext = null;
+          updateSessionMeta({
+            eye_tracking_status: "calibration_completed",
+            calibration_points_completed: completed,
+            calibration_completed_at: new Date().toISOString()
+          });
+          recordEvent("eye_calibration_completed", { calibration_points_completed: completed });
+          setTimeout(beginInstructions, 500);
+        }
       };
     });
   } catch (error) {
     eyeEnabled = false;
     eyeStarted = false;
+    eyeCalibrationContext = null;
+    updateSessionMeta({
+      eye_tracking_status: "failed",
+      eye_error: String(error && error.message || error),
+      eye_failed_at: new Date().toISOString()
+    });
+    recordEvent("eye_tracking_failed", { error: String(error && error.message || error) });
     panel(
       "眼动初始化失败",
       '<p>摄像头权限或眼动模块初始化失败。可以跳过眼动追踪，继续完成行为实验。</p>',
@@ -861,7 +882,7 @@ function cancelPendingTaskActions() {
 }
 
 async function runPosnerTrial(trial, epoch) {
-  const context = makeTrialContext();
+  const context = makeTrialContext(trial);
   currentTrialContext = context;
   const isPractice = phase === "practice";
   taskStage.innerHTML =
@@ -874,8 +895,10 @@ async function runPosnerTrial(trial, epoch) {
   const center = $("#posner-center");
   await sleep(500);
   if (!active || epoch !== sessionEpoch) return;
+  recordEvent("fixation_onset");
 
   const cueOnset = performance.now();
+  recordEvent("cue_onset", { cue_type: trial.cue_type, cue_side: trial.cue_side, cue_validity: trial.validity, soa_requested_ms: trial.soa_ms });
   if (trial.cue_type === "外周线索") {
     if (trial.cue_side === "左" || trial.cue_side === "中性") left.classList.add("is-cued");
     if (trial.cue_side === "右" || trial.cue_side === "中性") right.classList.add("is-cued");
@@ -889,6 +912,7 @@ async function runPosnerTrial(trial, epoch) {
   right.classList.remove("is-cued");
   center.textContent = "+";
   center.classList.remove("cue-arrow");
+  recordEvent("cue_offset");
   const remaining = Math.max(0, trial.soa_ms - (performance.now() - cueOnset));
   await sleep(remaining);
   if (!active || epoch !== sessionEpoch) return;
@@ -898,7 +922,9 @@ async function runPosnerTrial(trial, epoch) {
   target.textContent = "●";
   const targetOnset = performance.now();
   const targetOnsetIso = new Date().toISOString();
+  recordEvent("target_onset", { target_side: trial.target_side });
   const response = await waitForKey(["a", "l"], phase === "practice" ? 1500 : 1800);
+  recordEvent("response", { response_key: response.key || "", response_status: response.status, rt_ms: response.rt_ms === null ? "" : Math.round(response.rt_ms) });
   if (!active || epoch !== sessionEpoch) return;
   const responseSide = response.key === "a" ? "左" : response.key === "l" ? "右" : "";
   const correct = response.status === "responded" && responseSide === trial.target_side;
@@ -995,7 +1021,7 @@ function generateScatterPositions(count, container) {
 }
 
 async function runSearchTrial(trial, epoch) {
-  const context = makeTrialContext();
+  const context = makeTrialContext(trial);
   currentTrialContext = context;
   const generated = createSearchArray(trial);
   const layout = generated.items.map((item, index) => ({
@@ -1026,9 +1052,21 @@ async function runSearchTrial(trial, epoch) {
     layout[index].y_percent = Number((point.y / placement.height * 100).toFixed(2));
   });
 
+  updateCurrentTrial({
+    target_position: generated.target_index,
+    stimulus_area_width_px: placement.width,
+    stimulus_area_height_px: placement.height,
+    stimulus_layout: JSON.stringify(layout)
+  });
   const targetOnset = performance.now();
   const targetOnsetIso = new Date().toISOString();
+  recordEvent("search_array_onset", {
+    target_present: trial.target_present, search_type: trial.search_type,
+    set_size: trial.set_size, stimulus_area_width_px: placement.width,
+    stimulus_area_height_px: placement.height
+  });
   const response = await waitForKey(["f", "j"], phase === "practice" ? 3500 : 5000);
+  recordEvent("response", { response_key: response.key || "", response_status: response.status, rt_ms: response.rt_ms === null ? "" : Math.round(response.rt_ms) });
   if (!active || epoch !== sessionEpoch) return;
   const responsePresent = response.key === "f" ? true : response.key === "j" ? false : null;
   const correct = responsePresent !== null && responsePresent === trial.target_present;
@@ -1074,7 +1112,7 @@ function faceStimulusMarkup() {
 }
 
 async function runFaceTrial(trial, epoch) {
-  const context = makeTrialContext();
+  const context = makeTrialContext(trial);
   currentTrialContext = context;
   await preloadFaceStimuli();
   if (!active || epoch !== sessionEpoch) return;
@@ -1096,17 +1134,28 @@ async function runFaceTrial(trial, epoch) {
   const fileA = FACE_BASE + trial.file_a;
   const fileB = FACE_BASE + trial.file_b;
 
-  const setVisible = (src) => {
+  const setVisible = (src, frameLabel) => {
     image.src = src;
     image.style.visibility = "visible";
+    recordEvent(frameLabel === "A" ? "face_A_onset" : "face_B_onset", {
+      stimulus_file: frameLabel === "A" ? trial.file_a : trial.file_b,
+      flicker_presentation: flickerCount
+    });
   };
   const setBlank = () => {
     image.style.visibility = "hidden";
+    recordEvent("face_blank_onset", { flicker_presentation: flickerCount });
   };
   const stop = (value) => {
     if (decision) return;
     decision = value;
     decisionTime = performance.now();
+    const partialRt = Math.round(decisionTime - trialStart);
+    recordEvent("response", { decision: value, rt_ms: partialRt });
+    updateCurrentTrial({
+      decision: value, decision_rt_ms: partialRt,
+      response_status: "responded_partial", flicker_presentations: flickerCount
+    });
     resolveDecision();
   };
   const keyboard = (event) => {
@@ -1124,8 +1173,8 @@ async function runFaceTrial(trial, epoch) {
 
   let showA = true;
   while (active && !decision && performance.now() < deadline) {
-    setVisible(showA ? fileA : fileB);
     flickerCount++;
+    setVisible(showA ? fileA : fileB, showA ? "A" : "B");
     await waitForDecisionOr(250);
     if (!active || decision) break;
     setBlank();
@@ -1138,12 +1187,21 @@ async function runFaceTrial(trial, epoch) {
   if (!decision) {
     decision = "timeout";
     decisionTime = performance.now();
+    recordEvent("response", { decision: "timeout", response_status: "timeout" });
   }
   const decisionRt = decision === "timeout" ? "" : Math.round(decisionTime - trialStart);
   const hit = trial.changed && decision === "found";
   const falseAlarm = !trial.changed && decision === "found";
   const miss = trial.changed && decision === "no_change";
   const correctRejection = !trial.changed && decision === "no_change";
+  updateCurrentTrial({
+    decision,
+    outcome: hit ? "hit" : miss ? "miss" : correctRejection ? "correct_rejection" : falseAlarm ? "false_alarm" : "timeout",
+    change_detected: decision === "found",
+    decision_rt_ms: decisionRt,
+    response_status: decision === "timeout" ? "timeout" : "responded_partial",
+    flicker_presentations: flickerCount
+  });
 
   if (decision === "found") {
     taskStage.innerHTML =
@@ -1169,6 +1227,11 @@ async function runFaceTrial(trial, epoch) {
       document.querySelectorAll("[data-feature]").forEach((button) => {
         button.onclick = () => {
           chosenFeature = button.dataset.feature;
+          updateCurrentTrial({
+            feature_choice: chosenFeature,
+            feature_choice_rt_ms: Math.round(performance.now() - choiceStart)
+          });
+          recordEvent("feature_choice", { feature_choice: chosenFeature });
           resolve();
         };
       });
@@ -1176,6 +1239,7 @@ async function runFaceTrial(trial, epoch) {
     });
     if (!active || epoch !== sessionEpoch) return;
     const featureChoiceRt = Math.round(performance.now() - choiceStart);
+    updateCurrentTrial({ feature_choice: chosenFeature, feature_choice_rt_ms: featureChoiceRt });
     appendTrial({
       correct: hit || correctRejection,
       stimulus_onset_time: trialStartIso,
