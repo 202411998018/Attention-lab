@@ -168,7 +168,10 @@ $(".menu-toggle").onclick = () => {
   $(".menu-toggle").setAttribute("aria-expanded", String(isOpen));
 };
 document.querySelectorAll(".main-nav a").forEach((link) => {
-  link.addEventListener("click", () => $(".main-nav").classList.remove("mobile-open"));
+  link.addEventListener("click", () => {
+    $(".main-nav").classList.remove("mobile-open");
+    $(".menu-toggle").setAttribute("aria-expanded", "false");
+  });
 });
 $("#start-experiment").onclick = () => {
   closeModal();
