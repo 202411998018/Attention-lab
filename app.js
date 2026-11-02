@@ -34,6 +34,12 @@ const EXPERIMENTS = {
 const STORAGE_TRIALS = "attentionLabData";
 const STORAGE_GAZE = "attentionLabGaze";
 const STORAGE_SESSIONS = "attentionLabSessions";
+const STORAGE_EVENTS = "attentionLabEvents";
+const GAZE_CHUNK_PREFIX = "attentionLabGazeChunk:";
+const DB_NAME = "AttentionLabData";
+const DB_VERSION = 1;
+const DB_STORES = ["sessions", "trials", "gaze", "events"];
+const GAZE_CHUNK_SIZE = 50;
 const FACE_BASE = "assets/face-change-stimuli/";
 const FACE_PAIRS = [
   { feature: "注视方向", key: "gaze", a: "01_gaze_left.svg", b: "02_gaze_right.svg" },
@@ -64,6 +70,16 @@ let gazePersisted = false;
 let sessionEpoch = 0;
 let pendingKeyCancel = null;
 let pendingActionCancel = null;
+let dataDbPromise = null;
+let dbFlushPromise = null;
+let pendingDbWrites = { sessions: [], trials: [], gaze: [], events: [] };
+let dbFlushTimer = null;
+let sessionMeta = null;
+let eyeCalibrationContext = null;
+let sessionGazeIndex = 0;
+let sessionEventIndex = 0;
+let gazeFallbackBuffer = [];
+let gazeChunkIndex = 0;
 
 document.querySelectorAll("[data-open]").forEach((button) => {
   button.addEventListener("click", () => openModal(button.dataset.open));
@@ -179,6 +195,318 @@ function writeStoredArray(key, values) {
   }
 }
 
+
+function upsertStoredArray(key, row) {
+  const rows = readStoredArray(key);
+  const index = row.record_id ? rows.findIndex((item) => item.record_id === row.record_id) : -1;
+  if (index >= 0) rows[index] = row;
+  else rows.push(row);
+  return writeStoredArray(key, rows);
+}
+
+function openDataDB() {
+  if (!("indexedDB" in window)) return Promise.resolve(null);
+  if (dataDbPromise) return dataDbPromise;
+  dataDbPromise = new Promise((resolve) => {
+    let request;
+    try { request = indexedDB.open(DB_NAME, DB_VERSION); }
+    catch (_) { resolve(null); return; }
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      DB_STORES.forEach((name) => {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "record_id" });
+      });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+    request.onblocked = () => resolve(null);
+  });
+  return dataDbPromise;
+}
+
+function scheduleDataFlush() {
+  if (dbFlushTimer) return;
+  dbFlushTimer = setTimeout(() => {
+    dbFlushTimer = null;
+    flushPendingData();
+  }, 350);
+}
+
+function queueDataRecord(store, row) {
+  if (!pendingDbWrites[store] || !row || !row.record_id) return;
+  pendingDbWrites[store].push(row);
+  if (pendingDbWrites[store].length >= GAZE_CHUNK_SIZE) flushPendingData();
+  else scheduleDataFlush();
+}
+
+async function flushPendingData() {
+  if (dbFlushPromise) return dbFlushPromise;
+  dbFlushPromise = (async () => {
+    const stores = DB_STORES.filter((name) => pendingDbWrites[name].length);
+    if (!stores.length) return true;
+    const db = await openDataDB();
+    if (!db) {
+      stores.forEach((name) => { pendingDbWrites[name] = []; });
+      return false;
+    }
+    const batch = {};
+    stores.forEach((name) => { batch[name] = pendingDbWrites[name].splice(0); });
+    return new Promise((resolve) => {
+      let transaction;
+      try {
+        transaction = db.transaction(stores, "readwrite");
+        stores.forEach((name) => batch[name].forEach((row) => transaction.objectStore(name).put(row)));
+      } catch (_) {
+        stores.forEach((name) => { pendingDbWrites[name] = batch[name].concat(pendingDbWrites[name]); });
+        resolve(false);
+        return;
+      }
+      transaction.oncomplete = () => resolve(true);
+      const restore = () => {
+        stores.forEach((name) => { pendingDbWrites[name] = batch[name].concat(pendingDbWrites[name]); });
+        resolve(false);
+      };
+      transaction.onerror = restore;
+      transaction.onabort = restore;
+    });
+  })();
+  try { return await dbFlushPromise; }
+  finally {
+    dbFlushPromise = null;
+    if (DB_STORES.some((name) => pendingDbWrites[name].length)) scheduleDataFlush();
+  }
+}
+
+async function readDbStore(store) {
+  const db = await openDataDB();
+  if (!db) return [];
+  return new Promise((resolve) => {
+    try {
+      const request = db.transaction(store, "readonly").objectStore(store).getAll();
+      request.onsuccess = () => resolve(Array.isArray(request.result) ? request.result : []);
+      request.onerror = () => resolve([]);
+    } catch (_) { resolve([]); }
+  });
+}
+
+function persistGazeFallbackChunk() {
+  if (!gazeFallbackBuffer.length || !sessionId) return;
+  const chunk = gazeFallbackBuffer.splice(0, GAZE_CHUNK_SIZE);
+  const key = GAZE_CHUNK_PREFIX + sessionId + ":" + String(gazeChunkIndex++).padStart(5, "0");
+  try { localStorage.setItem(key, JSON.stringify(chunk)); }
+  catch (error) {
+    sessionWarnings.push("眼动分块备份失败：" + String(error && error.message || error));
+    gazeFallbackBuffer = chunk.concat(gazeFallbackBuffer);
+  }
+}
+
+function collectGazeFallbackRows() {
+  const rows = readStoredArray(STORAGE_GAZE);
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(GAZE_CHUNK_PREFIX)) continue;
+      const chunk = JSON.parse(localStorage.getItem(key) || "[]");
+      if (Array.isArray(chunk)) rows.push(...chunk);
+    }
+  } catch (_) {}
+  return rows;
+}
+
+function mergeRecordSets() {
+  const map = new Map();
+  let legacyIndex = 0;
+  Array.from(arguments).forEach((set) => (set || []).forEach((row) => {
+    if (!row) return;
+    map.set(row.record_id || "legacy:" + legacyIndex++, row);
+  }));
+  return Array.from(map.values());
+}
+
+async function getAllLocalRecords(store) {
+  await flushPendingData();
+  let localRows = [];
+  if (store === "sessions") localRows = readStoredArray(STORAGE_SESSIONS);
+  if (store === "trials") localRows = readStoredArray(STORAGE_TRIALS);
+  if (store === "events") localRows = readStoredArray(STORAGE_EVENTS);
+  if (store === "gaze") localRows = collectGazeFallbackRows();
+  return mergeRecordSets(localRows, await readDbStore(store));
+}
+
+function updateSessionMeta(patch) {
+  if (!sessionMeta) return;
+  sessionMeta = Object.assign({}, sessionMeta, patch, { updated_at: new Date().toISOString() });
+  upsertStoredArray(STORAGE_SESSIONS, sessionMeta);
+  queueDataRecord("sessions", sessionMeta);
+}
+
+function recordEvent(eventName, details) {
+  if (!sessionId) return null;
+  const now = performance.now();
+  const context = currentTrialContext || eyeCalibrationContext;
+  const row = Object.assign({
+    record_id: sessionId + ":event:" + sessionEventIndex,
+    event_index: sessionEventIndex++,
+    session_id: sessionId,
+    participant,
+    experiment: selected ? selected.id : "",
+    phase: context ? context.phase : phase,
+    trial_number: context && context.trial_number !== undefined ? context.trial_number : "",
+    event_name: eventName,
+    timestamp_utc: new Date().toISOString(),
+    performance_ms: Number(now.toFixed(3)),
+    elapsed_trial_ms: context ? Number((now - context.started_perf).toFixed(3)) : ""
+  }, details || {});
+  upsertStoredArray(STORAGE_EVENTS, row);
+  queueDataRecord("events", row);
+  return row;
+}
+
+function persistTrialRow(row) {
+  const index = sessionRows.findIndex((item) => item.record_id === row.record_id);
+  if (index >= 0) sessionRows[index] = row;
+  else sessionRows.push(row);
+  upsertStoredArray(STORAGE_TRIALS, row);
+  queueDataRecord("trials", row);
+}
+
+function updateCurrentTrial(data) {
+  if (!currentTrialContext) return null;
+  const context = currentTrialContext;
+  const row = Object.assign({}, context.row, data || {}, {
+    record_id: context.row.record_id,
+    gaze_samples_in_trial: context.gaze_samples || 0,
+    gaze_valid_samples_in_trial: context.gaze_valid_samples || 0,
+    updated_at: new Date().toISOString()
+  });
+  context.row = row;
+  persistTrialRow(row);
+  return row;
+}
+
+function makeTrialContext(trial) {
+  const startedPerf = performance.now();
+  const trialNumber = trialIndex + 1;
+  const context = { trial_number: trialNumber, phase, started_perf: startedPerf, gaze_samples: 0, gaze_valid_samples: 0, row: null };
+  const row = Object.assign({
+    record_id: sessionId + ":trial:" + phase + ":" + trialNumber,
+    session_id: sessionId,
+    participant,
+    experiment: selected.id,
+    phase,
+    trial_number: trialNumber,
+    trial_status: "in_progress",
+    trial_started_at: new Date().toISOString(),
+    eye_tracking_enabled: eyeEnabled,
+    gaze_samples_in_trial: 0,
+    gaze_valid_samples_in_trial: 0
+  }, trial || {});
+  context.row = row;
+  currentTrialContext = context;
+  persistTrialRow(row);
+  recordEvent("trial_start", trial || {});
+  return context;
+}
+
+function appendTrial(data) {
+  if (!currentTrialContext) return null;
+  const row = updateCurrentTrial(Object.assign({}, data || {}, {
+    trial_status: "completed",
+    trial_completed_at: new Date().toISOString()
+  }));
+  recordEvent("trial_complete", {
+    response_status: row && row.response_status || "",
+    correct: row && typeof row.correct === "boolean" ? row.correct : ""
+  });
+  return row;
+}
+
+function recordGazeSample(data, webgazerElapsedTime) {
+  if (!sessionId || !eyeEnabled) return;
+  const context = currentTrialContext || eyeCalibrationContext;
+  if (!context) return;
+  const now = performance.now();
+  const width = window.innerWidth || 0;
+  const height = window.innerHeight || 0;
+  const valid = !!data && Number.isFinite(Number(data.x)) && Number.isFinite(Number(data.y));
+  const x = valid ? Number(data.x) : null;
+  const y = valid ? Number(data.y) : null;
+  const sample = {
+    record_id: sessionId + ":gaze:" + sessionGazeIndex,
+    sample_index: sessionGazeIndex++,
+    session_id: sessionId,
+    participant,
+    experiment: selected ? selected.id : "",
+    phase: context.phase,
+    trial_number: context.trial_number === undefined ? "" : context.trial_number,
+    timestamp_utc: new Date().toISOString(),
+    performance_ms: Number(now.toFixed(3)),
+    elapsed_trial_ms: Number((now - context.started_perf).toFixed(3)),
+    webgazer_elapsed_ms: Number.isFinite(Number(webgazerElapsedTime)) ? Number(webgazerElapsedTime) : "",
+    x_px: x === null ? "" : x,
+    y_px: y === null ? "" : y,
+    x_norm: x === null || !width ? "" : Number((x / width).toFixed(6)),
+    y_norm: y === null || !height ? "" : Number((y / height).toFixed(6)),
+    viewport_width: width,
+    viewport_height: height,
+    device_pixel_ratio: window.devicePixelRatio || 1,
+    gaze_valid: valid
+  };
+  sessionGaze.push(sample);
+  gazeFallbackBuffer.push(sample);
+  queueDataRecord("gaze", sample);
+  if (gazeFallbackBuffer.length >= GAZE_CHUNK_SIZE) persistGazeFallbackChunk();
+  if (context === currentTrialContext) {
+    context.gaze_samples += 1;
+    if (valid) context.gaze_valid_samples += 1;
+  }
+}
+
+function interruptCurrentTrial(reason) {
+  if (!currentTrialContext) return;
+  const context = currentTrialContext;
+  updateCurrentTrial({
+    trial_status: "interrupted",
+    response_status: context.row.response_status || "interrupted",
+    interruption_reason: reason,
+    interrupted_at: new Date().toISOString()
+  });
+  recordEvent("trial_interrupted", { interruption_reason: reason });
+  currentTrialContext = null;
+}
+
+async function exportAllLocalBackup(incompleteOnly) {
+  const [sessions, trials, gaze, events] = await Promise.all([
+    getAllLocalRecords("sessions"), getAllLocalRecords("trials"),
+    getAllLocalRecords("gaze"), getAllLocalRecords("events")
+  ]);
+  const chosenSessions = incompleteOnly ? sessions.filter((row) => row.status !== "completed") : sessions;
+  const ids = new Set(chosenSessions.map((row) => row.session_id));
+  downloadJSON({
+    schema_version: 2,
+    exported_at: new Date().toISOString(),
+    storage_scope: "This browser and device only; not uploaded to a server.",
+    filter: incompleteOnly ? "incomplete_sessions" : "all_local_records",
+    sessions: chosenSessions,
+    trials: trials.filter((row) => ids.has(row.session_id)),
+    gaze: gaze.filter((row) => ids.has(row.session_id)),
+    events: events.filter((row) => ids.has(row.session_id))
+  }, incompleteOnly ? "attention-lab-incomplete-sessions.json" : "attention-lab-full-backup.json");
+}
+
+async function refreshDataArchive() {
+  const summary = $("#archive-summary");
+  if (!summary) return;
+  const [sessions, trials, gaze, events] = await Promise.all([
+    getAllLocalRecords("sessions"), getAllLocalRecords("trials"),
+    getAllLocalRecords("gaze"), getAllLocalRecords("events")
+  ]);
+  const incomplete = sessions.filter((row) => row.status !== "completed").length;
+  summary.textContent = "本机记录：" + sessions.length + " 个 Session · " + trials.length +
+    " 条试次 · " + gaze.length + " 条眼动样本 · " + events.length +
+    " 条事件；其中未完成/中断 Session：" + incomplete + " 个。";
+}
+
 function startNewSession() {
   sessionEpoch += 1;
   sessionId = makeId();
@@ -188,16 +516,26 @@ function startNewSession() {
   gazePersisted = false;
   eyeEnabled = false;
   eyeStarted = false;
+  eyeCalibrationContext = null;
+  sessionGazeIndex = 0;
+  sessionEventIndex = 0;
+  gazeFallbackBuffer = [];
+  gazeChunkIndex = 0;
   sessionStartIso = new Date().toISOString();
-  const sessions = readStoredArray(STORAGE_SESSIONS);
-  sessions.push({
-    session_id: sessionId,
-    participant,
-    experiment: selected.id,
-    started_at: sessionStartIso,
-    status: "in_progress"
-  });
-  writeStoredArray(STORAGE_SESSIONS, sessions);
+  sessionMeta = {
+    record_id: sessionId, session_id: sessionId, participant,
+    experiment: selected.id, started_at: sessionStartIso,
+    status: "in_progress", phase: "setup",
+    eye_consent: null, eye_tracking_status: "not_started",
+    user_agent: navigator.userAgent || "", language: navigator.language || "",
+    screen_width: window.screen ? window.screen.width : "",
+    screen_height: window.screen ? window.screen.height : "",
+    viewport_width: window.innerWidth, viewport_height: window.innerHeight,
+    device_pixel_ratio: window.devicePixelRatio || 1
+  };
+  upsertStoredArray(STORAGE_SESSIONS, sessionMeta);
+  queueDataRecord("sessions", sessionMeta);
+  recordEvent("session_start", { screen_width: sessionMeta.screen_width, screen_height: sessionMeta.screen_height });
 }
 
 function eyeSetup() {
@@ -473,33 +811,6 @@ async function runNext() {
 
 function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function makeTrialContext() {
-  return {
-    trial_number: trialIndex + 1,
-    phase,
-    started_perf: performance.now()
-  };
-}
-
-function appendTrial(data) {
-  const row = Object.assign({
-    session_id: sessionId,
-    participant,
-    experiment: selected.id,
-    phase,
-    trial_number: trialIndex + 1,
-    trial_timestamp: new Date().toISOString(),
-    eye_tracking_enabled: eyeEnabled,
-    gaze_samples_in_trial: sessionGaze.filter((sample) =>
-      sample.trial_number === trialIndex + 1 && sample.phase === phase
-    ).length
-  }, data);
-  sessionRows.push(row);
-  const stored = readStoredArray(STORAGE_TRIALS);
-  stored.push(row);
-  writeStoredArray(STORAGE_TRIALS, stored);
 }
 
 function waitForKey(keys, timeoutMs) {
