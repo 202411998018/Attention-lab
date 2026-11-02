@@ -220,17 +220,27 @@ function openDataDB() {
   if (dataDbPromise) return dataDbPromise;
   dataDbPromise = new Promise((resolve) => {
     let request;
+    let settled = false;
+    const finish = (db) => {
+      if (settled) return;
+      settled = true;
+      resolve(db);
+    };
     try { request = indexedDB.open(DB_NAME, DB_VERSION); }
-    catch (_) { dataDbAvailable = false; resolve(null); return; }
+    catch (_) { dataDbAvailable = false; finish(null); return; }
     request.onupgradeneeded = () => {
       const db = request.result;
       DB_STORES.forEach((name) => {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "record_id" });
       });
     };
-    request.onsuccess = () => { dataDbAvailable = true; resolve(request.result); };
-    request.onerror = () => { dataDbAvailable = false; resolve(null); };
-    request.onblocked = () => { dataDbAvailable = false; };
+    request.onsuccess = () => {
+      if (settled) { request.result.close(); return; }
+      dataDbAvailable = true;
+      finish(request.result);
+    };
+    request.onerror = () => { dataDbAvailable = false; finish(null); };
+    request.onblocked = () => { dataDbAvailable = false; finish(null); };
   });
   return dataDbPromise;
 }
@@ -1149,10 +1159,10 @@ function faceStimulusMarkup() {
 }
 
 async function runFaceTrial(trial, epoch) {
-  const context = makeTrialContext(trial);
-  currentTrialContext = context;
   await preloadFaceStimuli();
   if (!active || epoch !== sessionEpoch) return;
+  const context = makeTrialContext(trial);
+  currentTrialContext = context;
   taskStage.innerHTML = '<div class="task-panel"><p class="task-muted">FACE FLICKER · ' +
     (trial.changed ? "CHANGE TRIAL" : "NO-CHANGE TRIAL") + '</p>' + faceStimulusMarkup() + '</div>';
   const image = $("#face-flicker-image");
