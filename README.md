@@ -9,7 +9,7 @@ Attention Lab is a browser-based educational platform featuring three classic at
 - **Face Flicker Change Detection** — face-feature change detection using a flicker-style task.
 - **Visual Search / Feature Integration** — feature and conjunction search across set sizes.
 
-The site includes participant setup, practice and formal trials, task-specific keyboard responses (A/L for Posner, F/J for visual search and face-change detection), balanced condition generation, irregular randomized visual-search layouts, response-time and accuracy recording, local trial-level persistence, session summaries, and CSV export.
+The site includes participant setup, shortened practice and formal trials, task-specific keyboard responses (A/L for Posner, F/J for visual search and face-change detection), balanced condition generation, irregular randomized visual-search layouts, response-time and accuracy recording, IndexedDB-backed session/trial/gaze/event persistence, interrupted-session recovery, a local data archive, and CSV/JSON export.
 
 ## Run locally
 
@@ -25,7 +25,7 @@ Then visit http://localhost:8000.
 
 - This is an initial educational prototype. Validate timing and stimulus presentation on the actual testing devices before collecting formal research data.
 - Webcam eye tracking is presented as an optional integration point. Add a locally hosted WebGazer build at `vendor/webgazer.js` to enable the calibration workflow. The prototype does not save camera video.
-- Participant data stays in the browser unless explicitly exported. Do not enter names, student IDs, or other direct identifiers.
+- Participant data stays in the browser (IndexedDB with localStorage fallback) unless explicitly exported. Incomplete sessions can be exported from the Data Archive on the homepage. No participant data is uploaded to GitHub or another server. Do not enter names, student IDs, or other direct identifiers.
 - Demo/example values are not real participant data.
 
 ## Project structure
