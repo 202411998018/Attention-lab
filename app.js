@@ -17,8 +17,8 @@ const EXPERIMENTS = {
     id: "change",
     name: "面孔变化检测实验",
     english: "FACE FLICKER CHANGE DETECTION",
-    description: "通过 A—空屏—B—空屏的闪烁范式，检测面孔注视方向、嘴角、眉毛、鼻子和发型的变化。",
-    facts: ["5 类面部特征变化", "无变化 Catch Trials", "变化检测与部位判断"],
+    description: "通过 A—空屏—B—空屏的闪烁范式，检测注视方向、嘴角、眉毛和鼻子四类较细微的变化。",
+    facts: ["4 类面部特征变化", "无变化 Catch Trials", "变化检测与部位判断"],
     duration: "约 5–8 分钟"
   },
   search: {
@@ -39,8 +39,7 @@ const FACE_PAIRS = [
   { feature: "注视方向", key: "gaze", a: "01_gaze_left.svg", b: "02_gaze_right.svg" },
   { feature: "嘴角", key: "mouth", a: "03_mouth_neutral.svg", b: "04_mouth_smile.svg" },
   { feature: "眉毛", key: "brows", a: "05_brows_flat.svg", b: "06_brows_raised.svg" },
-  { feature: "鼻子", key: "nose", a: "07_nose_normal.svg", b: "08_nose_wide.svg" },
-  { feature: "发型", key: "hair", a: "09_hair_short.svg", b: "10_hair_bangs.svg" }
+  { feature: "鼻子", key: "nose", a: "07_nose_normal.svg", b: "08_nose_wide.svg" }
 ];
 
 const $ = (selector) => document.querySelector(selector);
@@ -594,6 +593,53 @@ function createSearchArray(trial) {
   return { items: shuffledItems, target_index: shuffledItems.findIndex((item) => item.is_target) };
 }
 
+function generateScatterPositions(count, container) {
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  const firstItem = container.querySelector(".search-item");
+  const itemWidth = firstItem ? firstItem.offsetWidth : 34;
+  const itemHeight = firstItem ? firstItem.offsetHeight : 40;
+  const marginX = itemWidth / 2 + 8;
+  const marginY = itemHeight / 2 + 8;
+  let minDistance = Math.max(itemWidth * 1.2, Math.min(66, Math.min(width, height) * 0.16));
+  let positions = [];
+
+  // Rejection sampling gives each item an independent, irregular position.
+  for (let relaxation = 0; relaxation < 6; relaxation++) {
+    positions = [];
+    let attempts = 0;
+    const maxAttempts = count * 1200;
+    while (positions.length < count && attempts < maxAttempts) {
+      attempts += 1;
+      const x = marginX + Math.random() * Math.max(1, width - marginX * 2);
+      const y = marginY + Math.random() * Math.max(1, height - marginY * 2);
+      const separated = positions.every((point) => Math.hypot(point.x - x, point.y - y) >= minDistance);
+      if (separated) positions.push({ x, y });
+    }
+    if (positions.length === count) break;
+    minDistance *= 0.88;
+  }
+
+  // Very small viewports use a lightly jittered fallback rather than allowing overlap.
+  if (positions.length < count) {
+    const columns = Math.ceil(Math.sqrt(count * width / Math.max(1, height)));
+    const rows = Math.ceil(count / columns);
+    const cellWidth = (width - marginX * 2) / columns;
+    const cellHeight = (height - marginY * 2) / rows;
+    const slots = shuffle(Array.from({ length: columns * rows }, (_, index) => index));
+    positions = slots.slice(0, count).map((slot) => {
+      const column = slot % columns;
+      const row = Math.floor(slot / columns);
+      return {
+        x: marginX + (column + 0.5) * cellWidth + (Math.random() - 0.5) * cellWidth * 0.28,
+        y: marginY + (row + 0.5) * cellHeight + (Math.random() - 0.5) * cellHeight * 0.28
+      };
+    });
+  }
+
+  return { positions, width, height };
+}
+
 async function runSearchTrial(trial, epoch) {
   const context = makeTrialContext();
   currentTrialContext = context;
@@ -608,11 +654,24 @@ async function runSearchTrial(trial, epoch) {
     '<div class="task-panel"><p class="task-muted">' + escapeHtml(trial.search_type) +
     ' · SET SIZE ' + trial.set_size + '</p>' +
     '<p>寻找<strong>红色 T</strong>。按 F = 存在，按 J = 不存在。</p>' +
-    '<div class="search-grid search-grid-active" style="--search-columns:6">' +
-    generated.items.map((item) =>
-      '<span class="search-item ' + (item.color === "red" ? "search-red" : "search-green") + '">' +
-      item.letter + '</span>'
-    ).join("") + '</div><p class="task-muted">请尽量又快又准确地判断</p></div>';
+    '<div class="search-scatter" id="search-scatter">' +
+    generated.items.map((item, index) =>
+      '<span class="search-item ' + (item.color === "red" ? "search-red" : "search-green") +
+      '" data-search-item="' + index + '">' + item.letter + '</span>'
+    ).join("") + '</div><p class="task-muted">项目位置每轮随机变化，请尽快且准确地判断</p></div>';
+
+  const scatter = $("#search-scatter");
+  const placement = generateScatterPositions(generated.items.length, scatter);
+  placement.positions.forEach((point, index) => {
+    const element = scatter.querySelector('[data-search-item="' + index + '"]');
+    element.style.left = point.x + "px";
+    element.style.top = point.y + "px";
+    layout[index].x_px = Math.round(point.x);
+    layout[index].y_px = Math.round(point.y);
+    layout[index].x_percent = Number((point.x / placement.width * 100).toFixed(2));
+    layout[index].y_percent = Number((point.y / placement.height * 100).toFixed(2));
+  });
+
   const targetOnset = performance.now();
   const targetOnsetIso = new Date().toISOString();
   const response = await waitForKey(["f", "j"], 5000);
@@ -625,6 +684,8 @@ async function runSearchTrial(trial, epoch) {
     target_present: trial.target_present,
     target_onset_time: targetOnsetIso,
     target_position: generated.target_index,
+    stimulus_area_width_px: placement.width,
+    stimulus_area_height_px: placement.height,
     stimulus_layout: JSON.stringify(layout),
     response_key: response.key || "",
     response_present: responsePresent === null ? "" : responsePresent,
