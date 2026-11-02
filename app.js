@@ -131,7 +131,7 @@ $("#start-experiment").onclick = () => {
   showSetup(selected.id);
 };
 $("#exit-task").onclick = () => {
-  if (confirm("确定退出本次实验吗？已经完成的试次会保留在本机；当前未完成试次不会计入分析。")) {
+  if (confirm("确定退出本次实验吗？已完成试次和当前已产生的部分数据都会保留，并将本次 Session 标记为未完成。")) {
     stopEyeTracking();
     active = false;
     exitTask();
@@ -1375,7 +1375,7 @@ function finishTask() {
     '<div class="result-line"><span>眼动追踪</span><b>' + (eyeEnabled ? "已启用（探索性）" : "未启用") + '</b></div>' +
     '<div class="result-line"><span>本次眼动样本</span><b>' + sessionGaze.length + '</b></div>' +
     '</div>' +
-    '<p class="task-muted">数据保存在当前浏览器的本地存储中。清除浏览器数据或更换设备可能导致数据丢失，请及时下载备份。</p>' + storageWarningHtml,
+    '<p class="task-muted">数据已保存在当前浏览器。未完成试次会单独标记；清除浏览器数据或更换设备前，请从主页 Data Archive 导出备份。</p>' + storageWarningHtml,
     '<div class="task-choice"><button class="task-button" id="download-session">下载本次试次 CSV</button>' +
     '<button class="task-button secondary" id="download-gaze">下载本次眼动 CSV</button>' +
     '<button class="task-button secondary" id="download-all">下载本机累计数据 CSV</button>' +
