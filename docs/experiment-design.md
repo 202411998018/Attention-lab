@@ -81,7 +81,7 @@
 
 ## 眼动采集与数据结构建议
 
-当前仓库已预留 WebGazer 初始化、九点点击校准和 gaze listener 接口，但尚未包含 `vendor/webgazer.js`，因此当前部署版本仍是纯行为实验，不能把眼动记录视为已启用。
+当前代码已实现三个实验共享的 WebGazer gaze listener、九点点击校准、校准事件记录、逐样本坐标记录和 IndexedDB 持久化；但仓库尚未包含 `vendor/webgazer.js`，因此当前线上版本仍无法启动摄像头眼动采集。将经过验证的 WebGazer 构建放入该路径后，眼动记录模块才会实际产生 gaze samples。
 
 建议将眼动设计为三个实验共享的可选模块：在实验开始前征得单独的眼动采集同意，启动摄像头并完成校准；摄像头不可用、参与者拒绝或校准质量不足时，仍可继续行为实验。正式试次只记录估计得到的注视坐标，不保存摄像头视频。
 
@@ -94,7 +94,7 @@
 
 ### 眼动数据质量字段
 - Session 级记录眼动同意状态、摄像头权限结果、校准开始/结束时间、校准点坐标、独立验证误差、有效预测比例和失败原因。
-- 每个试次记录 gaze sample 总数、有效样本数、有效比例；不要只保存一个“已启用眼动”的布尔值。
+- 每个已完成或中断的试次记录 gaze sample 总数和有效样本数；有效比例可由两者计算。不要只保存一个“已启用眼动”的布尔值。
 - 对 WebGazer 返回的坐标，保留原始 viewport 像素坐标；归一化坐标用于跨分辨率比较，但不能替代原始坐标。
 - 采样频率由实际回调时间戳计算，不预设为固定 30 Hz 或 60 Hz。
 
@@ -118,7 +118,7 @@
 ## 数据保存与导出
 
 - 知情同意后立即创建 Session；每个试次在刺激呈现前先写入 `trial_status=in_progress`，反应完成后更新为 `completed`。
-- Session、trial、gaze 和 event 四类记录优先写入 IndexedDB。试次、Session 和事件同时保留 localStorage 镜像；眼动样本按小块写入本地备份。
+- Session、trial、gaze 和 event 四类记录优先写入 IndexedDB。试次、Session 和事件同时保留 localStorage 镜像；当 IndexedDB 不可用时，眼动样本按小块写入 localStorage 备份，pagehide 时也会备份尚未确认写入的尾部样本。
 - 记录刺激 onset/offset、反应和校准事件，时间同时使用 UTC 与 `performance.now()`，以便与眼动采样对齐。
 - 页面隐藏时、每秒定时以及 `pagehide` 时都会刷新待写入数据。主动退出会将 Session 标记为 `abandoned`；网页关闭或刷新时标记为 `interrupted`。当前未完成试次保留已经记录的条件、反应和眼动样本，不会被伪装成完整试次。
 - 主页 Data Archive 可导出全部 JSON 备份、未完成 Session 备份，以及 trials、gaze、events、sessions 四类 CSV。
