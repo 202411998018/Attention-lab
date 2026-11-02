@@ -478,7 +478,6 @@ function recordGazeSample(data, webgazerElapsedTime) {
   };
   sessionGaze.push(sample);
   queueDataRecord("gaze", sample);
-  if (dataDbAvailable === false) persistGazeFallbackChunk();
   if (context === currentTrialContext) {
     context.gaze_samples += 1;
     if (valid) context.gaze_valid_samples += 1;
