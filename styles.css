@@ -114,3 +114,85 @@
 .hw2-upload-status[data-status="uploading"]{border-color:#b5c4d1;background:#eef3f7;color:#405a70}
 .hw2-upload-status[data-status="not_configured"]{border-color:#d8c99e;background:#faf5e7;color:#78632d}
 @media(max-width:700px){.hw2-archive-panel{align-items:flex-start;flex-direction:column}.hw2-archive-panel .data-export-button{width:100%}}
+
+
+/* High-visibility experiment instructions */
+.task-stage:has(.instruction-panel){overflow-y:auto;align-items:center}
+.task-panel.instruction-panel{
+  width:min(860px,100%);
+  max-height:calc(100vh - 118px);
+  overflow-y:auto;
+  padding:clamp(20px,3vw,34px);
+  border:1px solid rgba(190,211,193,.28);
+  border-radius:20px;
+  background:linear-gradient(145deg,#1b2d25 0%,#14231d 100%);
+  box-shadow:0 22px 70px rgba(0,0,0,.28);
+  text-align:left;
+}
+.instruction-panel>.task-muted{color:#c4b18e!important;font-size:11px!important;font-weight:800;letter-spacing:.16em}
+.instruction-panel>h2{color:#fffaf0;font-size:clamp(29px,4vw,42px);line-height:1.2;margin:10px 0 22px}
+.instruction-sheet{display:grid;gap:17px}
+.instruction-notice{
+  display:flex;align-items:center;gap:13px;padding:15px 18px;
+  border:1px solid rgba(225,190,133,.48);border-left:5px solid #e0bd86;
+  border-radius:12px;background:rgba(224,189,134,.12)
+}
+.instruction-notice-icon{
+  display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:50%;
+  background:#e0bd86;color:#263229;font-size:21px;font-weight:900
+}
+.instruction-notice strong{display:block;color:#fff3dc;font-size:16px;margin-bottom:3px}
+.instruction-notice span:not(.instruction-notice-icon){display:block;color:#d1d9ce;font-size:12px;line-height:1.5}
+.instruction-lead{margin:0!important;color:#fffaf0!important;font-size:clamp(16px,2vw,19px)!important;font-weight:650;line-height:1.75!important}
+.instruction-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.instruction-step{
+  display:flex;gap:13px;align-items:flex-start;min-height:104px;padding:16px;
+  border:1px solid #40574a;border-radius:12px;background:#22372c
+}
+.instruction-step-number{
+  display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:9px;
+  background:#d7b783;color:#1e2b23;font-size:14px;font-weight:900
+}
+.instruction-step strong{display:block;color:#f5f4e9;font-size:15px;margin:2px 0 6px}
+.instruction-step p{margin:0!important;color:#c5d0c4!important;font-size:13px!important;line-height:1.65!important}
+.instruction-response{padding:15px 16px;border-radius:12px;background:#101c17;border:1px solid #3c5145}
+.instruction-response h3{margin:0 0 11px;color:#d5dfd4;font-size:12px;letter-spacing:.08em}
+.instruction-key-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.instruction-key-card{
+  display:flex;align-items:center;gap:13px;min-height:62px;padding:10px 14px;
+  border:1px solid #627b69;border-radius:10px;background:#2a4033;color:#fff9eb;
+  font-size:15px;font-weight:700
+}
+.instruction-key-card kbd{
+  display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:9px;
+  border:1px solid #e5c99c;background:#f0d7ad;color:#263229;
+  font:900 23px/1 Arial,Helvetica,sans-serif;box-shadow:0 2px 0 #9c8056
+}
+.instruction-feature-block{padding:14px 16px;border:1px solid #4b5d50;border-radius:12px;background:#1e3027}
+.instruction-feature-title{display:block;color:#f0e2c6;font-size:13px;margin-bottom:10px}
+.instruction-feature-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.instruction-feature-item{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 6px;border-radius:9px;background:#2c4235;color:#f6f3e8;font-size:12px;font-weight:650}
+.instruction-feature-item kbd{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:#e0bd86;color:#263229;font:800 15px Arial,Helvetica,sans-serif}
+.instruction-note{padding:13px 16px;border-radius:10px;background:rgba(190,211,193,.08);border:1px solid rgba(190,211,193,.22)}
+.instruction-note strong{display:block;color:#e7c99b;font-size:12px;margin-bottom:5px}
+.instruction-note p{margin:0!important;color:#d2dbd1!important;font-size:12px!important;line-height:1.7!important}
+.instruction-panel .instruction-start{
+  display:flex;align-items:center;justify-content:center;gap:18px;width:100%;
+  min-height:54px;margin:4px 0 0;border:0;border-radius:10px;
+  background:#e4c18c;color:#1d2a22;font-size:15px;font-weight:850;
+  box-shadow:0 5px 0 #9d8054;transition:transform .15s,box-shadow .15s,background .15s
+}
+.instruction-panel .instruction-start:hover{background:#f0d3a5;transform:translateY(-1px);box-shadow:0 6px 0 #9d8054}
+.instruction-panel .instruction-start:active{transform:translateY(2px);box-shadow:0 2px 0 #9d8054}
+@media(max-width:620px){
+  .task-stage:has(.instruction-panel){display:block;padding:12px}
+  .task-panel.instruction-panel{max-height:calc(100vh - 88px);padding:18px 15px;border-radius:14px}
+  .instruction-sheet{gap:12px}
+  .instruction-notice{padding:12px}
+  .instruction-steps{grid-template-columns:1fr;gap:9px}
+  .instruction-step{min-height:0;padding:13px}
+  .instruction-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .instruction-key-card{min-height:56px;padding:8px 10px;font-size:13px}
+  .instruction-key-card kbd{flex-basis:36px;height:36px;font-size:20px}
+  .instruction-panel .instruction-start{min-height:50px;font-size:14px}
+}
