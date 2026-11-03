@@ -152,11 +152,47 @@ function escapeHtml(value) {
   })[character]);
 }
 
-function panel(title, body, buttons) {
+function panel(title, body, buttons, panelClass) {
+  const className = panelClass ? " " + escapeHtml(panelClass) : "";
   taskStage.innerHTML =
-    '<div class="task-panel"><p class="task-muted">ATTENTION LAB · ' +
+    '<div class="task-panel' + className + '"><p class="task-muted">ATTENTION LAB · ' +
     escapeHtml(selected ? selected.english : "EXPERIMENT") +
     '</p><h2>' + title + '</h2>' + body + (buttons || "") + "</div>";
+}
+
+function instructionSheetMarkup(config) {
+  const steps = config.steps.map((step, index) =>
+    '<div class="instruction-step">' +
+      '<span class="instruction-step-number">0' + (index + 1) + '</span>' +
+      '<div><strong>' + escapeHtml(step.title) + '</strong>' +
+      '<p>' + escapeHtml(step.description) + '</p></div>' +
+    '</div>'
+  ).join("");
+  const keys = config.keys.map((item) =>
+    '<div class="instruction-key-card"><kbd>' + escapeHtml(item.key) +
+    '</kbd><span>' + escapeHtml(item.label) + '</span></div>'
+  ).join("");
+  const features = config.features && config.features.length
+    ? '<div class="instruction-feature-block">' +
+        '<strong class="instruction-feature-title">' + escapeHtml(config.featureTitle || "变化部位") + '</strong>' +
+        '<div class="instruction-feature-grid">' +
+        config.features.map((item) =>
+          '<div class="instruction-feature-item"><kbd>' + escapeHtml(item.key) +
+          '</kbd><span>' + escapeHtml(item.label) + '</span></div>'
+        ).join("") +
+        '</div></div>'
+    : "";
+  return '<div class="instruction-sheet">' +
+    '<div class="instruction-notice"><span class="instruction-notice-icon">!</span>' +
+      '<div><strong>开始前请先阅读</strong><span>先看清判断规则和按键，再进入练习。</span></div></div>' +
+    '<p class="instruction-lead">' + escapeHtml(config.lead) + '</p>' +
+    '<div class="instruction-steps">' + steps + '</div>' +
+    '<section class="instruction-response"><h3>作答按键</h3>' +
+      '<div class="instruction-key-grid">' + keys + '</div></section>' +
+    features +
+    '<div class="instruction-note"><strong>请特别注意</strong><p>' +
+      escapeHtml(config.note) + '</p></div>' +
+    '</div>';
 }
 
 function showSetup(id) {
@@ -946,31 +982,66 @@ function stopEyeTracking() {
 function beginInstructions() {
   active = true;
   currentTrialContext = null;
+  let title = "";
+  let config = null;
+
   if (selected.id === "posner") {
-    panel(
-      "Posner 空间线索任务",
-      '<p>请始终尽量注视屏幕中央的“+”。左右方框中会有一个目标圆点出现。目标出现后，请尽快判断它在左侧还是右侧。</p>' +
-      '<p>按键：A = 左侧；L = 右侧。线索可能出现在外围方框，也可能以中央箭头形式出现；有时线索方向不指向目标。</p>' +
-      '<p>请尽量保持头部稳定、眼睛注视中央，并兼顾速度与准确性。</p>',
-      '<button class="task-button" id="instructions-next">开始练习</button>'
-    );
+    title = "Posner 空间线索任务";
+    config = {
+      lead: "目标圆点出现后，请判断它实际出现在左侧还是右侧。每轮都以目标的位置为准。",
+      steps: [
+        { title: "保持注视中央", description: "尽量一直看着屏幕中央的“+”，不要跟随线索移动视线。" },
+        { title: "判断目标位置", description: "左右方框中出现圆点后，立即判断圆点在左边还是右边。" }
+      ],
+      keys: [
+        { key: "A", label: "目标在左侧" },
+        { key: "L", label: "目标在右侧" }
+      ],
+      note: "每轮可能出现外围方框闪烁或中央箭头。线索可能有效，也可能无效；不要根据线索猜答案，只报告目标圆点真正出现的位置。"
+    };
   } else if (selected.id === "search") {
-    panel(
-      "视觉搜索任务",
-      '<p>请在屏幕中的字母阵列里寻找<strong>红色 T</strong>。如果看到红色 T，按 F（存在）；如果没有看到，按 J（不存在）。</p>' +
-      '<p>特征搜索中，目标主要通过颜色区别于干扰项；结合搜索中，目标需要同时结合颜色和形状才能与干扰项区分。</p>' +
-      '<p>每轮阵列项目数量会变化。请尽快且准确地判断。</p>',
-      '<button class="task-button" id="instructions-next">开始练习</button>'
-    );
+    title = "视觉搜索任务";
+    config = {
+      lead: "请在随机分布的字母中寻找红色 T，并判断这一轮是否出现了它。",
+      steps: [
+        { title: "搜索整个字母区域", description: "目标始终是红色 T。字母可能分散在不同位置，布局和项目数量会变化。" },
+        { title: "判断目标是否存在", description: "看到至少一个红色 T，选择“存在”；没有看到红色 T，选择“不存在”。" }
+      ],
+      keys: [
+        { key: "F", label: "存在红色 T" },
+        { key: "J", label: "不存在红色 T" }
+      ],
+      note: "请根据当前屏幕中的字母作答，不要根据上一轮的位置或答案推测。尽量兼顾速度与准确性。"
+    };
   } else {
-    panel(
-      "面孔变化检测任务",
-      '<p>屏幕会反复呈现两张面孔，中间短暂出现空屏。请观察两张面孔之间是否发生变化。</p>' +
-      '<p>发现变化时按 F；如果认为没有变化，按 J。发现变化后，再按数字键 1–4 选择部位。部分试次确实没有变化。</p>' +
-      '<p>请不要猜测，尽可能准确地报告。</p>',
-      '<button class="task-button" id="instructions-next">开始练习</button>'
-    );
+    title = "面孔变化检测任务";
+    config = {
+      lead: "请比较交替出现的两张面孔，判断它们之间是否发生了变化。部分试次两张面孔完全相同。",
+      steps: [
+        { title: "先判断有没有变化", description: "只要发现两次呈现的面孔有差异，就按 F；如果没有发现差异，就按 J。" },
+        { title: "发现变化后选部位", description: "按 F 后，页面会继续询问你认为哪个面部特征发生了变化，请再按数字键选择。" }
+      ],
+      keys: [
+        { key: "F", label: "发现变化" },
+        { key: "J", label: "没有变化" }
+      ],
+      featureTitle: "按 F 后，继续选择变化部位",
+      features: [
+        { key: "1", label: "注视方向" },
+        { key: "2", label: "嘴角" },
+        { key: "3", label: "眉毛" },
+        { key: "4", label: "鼻子" }
+      ],
+      note: "如果按 J（没有变化），本轮直接结束，不需要再选择面部部位。"
+    };
   }
+
+  panel(
+    title,
+    instructionSheetMarkup(config),
+    '<button class="task-button instruction-start" id="instructions-next">我已了解，开始练习 <span aria-hidden="true">→</span></button>',
+    "instruction-panel"
+  );
   $("#instructions-next").onclick = beginPractice;
 }
 
