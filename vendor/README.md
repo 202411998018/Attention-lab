@@ -1,13 +1,14 @@
-# WebGazer dependency
+# WebGazer and MediaPipe dependencies
 
-Attention Lab currently loads the pinned WebGazer 3.5.3 browser bundle from:
+Attention Lab currently loads fixed browser builds from jsDelivr:
 
-`https://cdn.jsdelivr.net/npm/webgazer@3.5.3/dist/webgazer.js`
+- WebGazer 3.5.3: `https://cdn.jsdelivr.net/npm/webgazer@3.5.3/dist/webgazer.js`
+- MediaPipe Face Mesh 0.4.1633559619: `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619`
 
-The version is pinned rather than using a floating `latest` tag. The HTML sets `window.saveDataAcrossSessions = false` before loading WebGazer so one participant's calibration data is not reused for another participant.
+The versions are pinned rather than using a floating `latest` tag. Before WebGazer starts, `window.saveDataAcrossSessions = false` is set and `webgazer.params.faceMeshSolutionPath` is pointed to the pinned Face Mesh asset package.
 
-WebGazer is GPL-3.0-or-later. Its upstream source and license are available at:
-- https://github.com/brownhci/WebGazer
-- https://github.com/brownhci/WebGazer/blob/master/LICENSE.md
+Licenses:
+- WebGazer: GPL-3.0-or-later — https://github.com/brownhci/WebGazer/blob/master/LICENSE.md
+- MediaPipe Face Mesh: Apache-2.0 — https://github.com/google-ai-edge/mediapipe/blob/master/LICENSE
 
-The browser downloads the library from jsDelivr; the webcam stream and raw gaze samples are processed/stored in the participant's browser. No webcam video is uploaded by this project. If an offline/local bundle is added in the future, include the corresponding license and source/offer required by GPL-3.0-or-later.
+WebGazer's official maintenance ended on February 24, 2026. This project uses fixed versions to avoid silent dependency updates. The browser downloads these static dependencies; webcam video is processed in the browser, not recorded or uploaded. Raw gaze coordinates remain in local IndexedDB/localStorage and are not included in HW2 submissions.
