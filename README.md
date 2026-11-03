@@ -9,7 +9,7 @@ Attention Lab is a browser-based educational platform featuring three classic at
 - **Face Flicker Change Detection** — face-feature change detection using a flicker-style task.
 - **Visual Search / Feature Integration** — feature and conjunction search across set sizes.
 
-The site includes participant setup, shortened practice and formal trials, task-specific keyboard responses (A/L for Posner, F/J for visual search and face-change detection), balanced condition generation, irregular randomized visual-search layouts, response-time and accuracy recording, IndexedDB-backed session/trial/gaze/event persistence, interrupted-session recovery, a local data archive, and CSV/JSON export.
+The site includes participant setup, shortened practice and formal trials, task-specific keyboard responses (A/L for Posner, F/J for visual search and face-change detection), balanced condition generation, irregular randomized visual-search layouts, response-time and accuracy recording, IndexedDB-backed local session/trial/gaze/event persistence, submission of standardized trial JSON to the course HW2 endpoint, upload status and manual retry, a local data archive, and CSV/JSON export.
 
 ## Run locally
 
@@ -25,14 +25,15 @@ Then visit http://localhost:8000.
 
 - This is an initial educational prototype. Validate timing and stimulus presentation on the actual testing devices before collecting formal research data.
 - Webcam eye tracking is presented as an optional integration point. Add a locally hosted WebGazer build at `vendor/webgazer.js` to enable the calibration workflow. The prototype does not save camera video.
-- Participant data stays in the browser (IndexedDB with localStorage fallback) unless explicitly exported. Incomplete sessions can be exported from the Data Archive on the homepage. No participant data is uploaded to GitHub or another server. Do not enter names, student IDs, or other direct identifiers.
+- Trial data is submitted to the course HW2 endpoint after a session is completed or the participant exits; a local IndexedDB/localStorage backup is retained. Raw gaze samples and full event logs remain local because the course example only documents a `trials` array. Configure the six-character project code in `hw2-config.js`; never put the download key in frontend code. Do not enter names, student IDs, or other direct identifiers.
 - Demo/example values are not real participant data.
 
 ## Project structure
 
 - `index.html` — page structure and content
 - `styles.css` — visual system and responsive layouts
-- `app.js` — navigation, experiment flows, trial logging, summaries, and CSV export
+- `app.js` — navigation, experiment flows, trial logging, HW2 submission, local backup, summaries, and CSV export
+- `hw2-config.js` — course HW2 project code and endpoint configuration (no download key)
 - `docs/experiment-design.md` — task rationale, conditions, and hypotheses
 
 ## Experiments
@@ -50,5 +51,5 @@ See [Experiment design](docs/experiment-design.md) for a concise description of 
 1. Validate trial timing and condition balance.
 2. Pilot each task with a small number of participants.
 3. Add and validate the locally hosted WebGazer integration.
-4. Confirm the course data-collection endpoint schema before enabling remote submission.
+4. Configure a test project code in `hw2-config.js` and verify one test submission and the downloaded records in the course HW2 dashboard.
 5. Preregister hypotheses, exclusions, and analysis decisions before formal data collection.
