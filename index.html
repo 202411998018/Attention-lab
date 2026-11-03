@@ -170,7 +170,11 @@
     <div class="task-stage" id="task-stage"></div>
   </div>
 
-  <script src="vendor/webgazer.js"></script>
+  <script>
+    // Prevent calibration data from one participant carrying over to the next.
+    window.saveDataAcrossSessions = false;
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/webgazer@3.5.3/dist/webgazer.js" crossorigin="anonymous"></script>
   <script src="hw2-config.js"></script>
   <script src="app.js"></script>
 </body>
