@@ -928,6 +928,9 @@ async function startEyeCalibration() {
       throw new Error("当前浏览器不支持摄像头访问，请使用新版 Chrome、Edge 或 Firefox。");
     }
     if (typeof webgazer.saveDataAcrossSessions === "function") webgazer.saveDataAcrossSessions(false);
+    if (webgazer.params) {
+      webgazer.params.faceMeshSolutionPath = "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619";
+    }
     if (typeof webgazer.setGazeListener === "function") {
       webgazer.setGazeListener((data, elapsedTime) => recordGazeSample(data, elapsedTime));
     }
@@ -940,19 +943,23 @@ async function startEyeCalibration() {
       if (typeof webgazer.applyKalmanFilter === "function") webgazer.applyKalmanFilter(true);
     } catch (_) {}
     eyeCalibrationContext = {
-      phase: "calibration",
+      phase: "camera_check",
       trial_number: "",
       started_perf: performance.now()
     };
     updateSessionMeta({
-      eye_tracking_status: "calibrating",
+      eye_tracking_status: "camera_check",
       eye_started_at: new Date().toISOString(),
       eye_tracking_library: "WebGazer 3.5.3",
+      eye_face_mesh_assets: "@mediapipe/face_mesh 0.4.1633559619",
       eye_save_data_across_sessions: false
     });
-    recordEvent("eye_tracking_started", { library: "WebGazer 3.5.3" });
+    recordEvent("eye_tracking_started", {
+      library: "WebGazer 3.5.3",
+      face_mesh_assets: "@mediapipe/face_mesh 0.4.1633559619"
+    });
     await sleep(700);
-    runNinePointEyeCalibration();
+    showEyeCameraCheck();
   } catch (error) {
     try {
       if (webgazer && typeof webgazer.pause === "function") webgazer.pause();
@@ -976,6 +983,33 @@ async function startEyeCalibration() {
     );
     $("#eye-failed-continue").onclick = beginInstructions;
   }
+}
+
+function showEyeCameraCheck() {
+  panel(
+    "摄像头画面检查",
+    '<p class="eye-calibration-intro">请确认右下角的小画面能够看到你的面部。尽量正对屏幕，保持眼睛清晰可见，并避免强烈背光。确认位置合适后，再开始九点校准。</p>' +
+    '<div class="eye-camera-check-note">摄像头画面仅用于本机实时估计，不会录制或上传。进入校准后，预览画面会自动隐藏，以免遮挡校准点。</div>',
+    '<div class="task-choice"><button class="task-button" id="eye-camera-ready">位置合适，开始校准</button><button class="task-button secondary" id="eye-camera-skip">跳过眼动，继续行为实验</button></div>',
+    "eye-camera-panel"
+  );
+  $("#eye-camera-ready").onclick = () => {
+    try { if (typeof window.webgazer.showVideoPreview === "function") window.webgazer.showVideoPreview(false); } catch (_) {}
+    eyeCalibrationContext = {
+      phase: "calibration",
+      trial_number: "",
+      started_perf: performance.now()
+    };
+    runNinePointEyeCalibration();
+  };
+  $("#eye-camera-skip").onclick = () => {
+    eyeEnabled = false;
+    eyeCalibrationContext = null;
+    stopEyeTracking();
+    updateSessionMeta({ eye_tracking_status: "skipped_after_camera_check" });
+    recordEvent("eye_tracking_skipped_after_camera_check");
+    beginInstructions();
+  };
 }
 
 function runNinePointEyeCalibration() {
