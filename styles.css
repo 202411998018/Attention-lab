@@ -225,3 +225,16 @@
 .eye-camera-check-note{max-width:650px;margin:18px auto;padding:12px 16px;border:1px solid rgba(211,225,212,.18);border-radius:10px;color:#b8c7b7;font-size:12px;line-height:1.8}
 .task-panel.eye-camera-panel{width:min(720px,100%)}
 @media(max-width:620px){#webgazerVideoContainer{right:10px!important;bottom:10px!important;width:132px!important;height:99px!important}}
+
+/* Keep all calibration controls reachable on short and mobile viewports. */
+.task-stage:has(.eye-calibration-panel),
+.task-stage:has(.eye-validation-panel) {
+  display: block;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.task-panel.eye-calibration-panel,
+.task-panel.eye-validation-panel {
+  max-width: 1160px;
+  margin: 0 auto;
+}
