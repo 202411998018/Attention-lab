@@ -98,6 +98,7 @@ $("#export-trials-csv").onclick = async () => downloadCSV(await getAllLocalRecor
 $("#export-gaze-csv").onclick = async () => downloadCSV(await getAllLocalRecords("gaze"), "attention-lab-gaze.csv");
 $("#export-events-csv").onclick = async () => downloadCSV(await getAllLocalRecords("events"), "attention-lab-events.csv");
 $("#export-sessions-csv").onclick = async () => downloadCSV(await getAllLocalRecords("sessions"), "attention-lab-sessions.csv");
+$("#hw2-retry-pending").onclick = retryPendingHw2Uploads;
 refreshDataArchive();
 
 
@@ -395,6 +396,11 @@ function getHw2ProjectCode() {
   return String(config.projectCode || "").trim().toUpperCase();
 }
 
+function getHw2Endpoint() {
+  const config = window.ATTENTION_LAB_HW2_CONFIG || {};
+  return String(config.endpoint || HW2_ENDPOINT).trim();
+}
+
 function isHw2Configured() {
   return /^[A-Z0-9]{6}$/.test(getHw2ProjectCode());
 }
@@ -482,7 +488,10 @@ function renderHw2UploadStatus(targetSessionId) {
     failed: "上传失败，数据仍保存在本机。请检查网络后重试。",
     no_trials: "本次没有产生可提交的试次记录；本地 Session 仍已保留。"
   };
-  statusElement.textContent = messages[status] || "数据已保存在本机。";
+  const detail = status === "failed" && current && current.hw2_upload_error
+    ? " 错误信息：" + current.hw2_upload_error
+    : "";
+  statusElement.textContent = (messages[status] || "数据已保存在本机。") + detail;
   statusElement.dataset.status = status;
   if (retryButton) {
     retryButton.disabled = !isHw2Configured() || status === "uploading" || status === "uploaded" || status === "no_trials";
@@ -543,7 +552,7 @@ async function submitSessionToHw2(targetSessionId) {
       trials: sessionTrials.map((row) => normalizeHw2Trial(row, session))
     };
     try {
-      const response = await fetch(HW2_ENDPOINT, {
+      const response = await fetch(getHw2Endpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1730,7 +1739,8 @@ function downloadAllLocalData() {
 }
 
 function exitTask() {
-  if (sessionMeta && sessionMeta.status === "in_progress") {
+  const wasActiveSession = !!(sessionMeta && sessionMeta.status === "in_progress");
+  if (wasActiveSession) {
     interruptCurrentTrial("user_exit");
     updateSessionMeta({
       status: "abandoned",
@@ -1749,7 +1759,7 @@ function exitTask() {
   stopEyeTracking();
   eyeEnabled = false;
   flushPendingData();
-  if (sessionMeta && ["completed", "abandoned", "interrupted"].includes(sessionMeta.status)) {
+  if (wasActiveSession && sessionMeta && ["abandoned", "interrupted"].includes(sessionMeta.status)) {
     submitSessionToHw2(sessionMeta.session_id);
   }
   taskOverlay.classList.remove("open");
