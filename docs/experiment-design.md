@@ -125,6 +125,37 @@
 - 三个实验分别使用 `posner`、`visual_search`、`change_blindness` 标识。所有练习和正式试次均保留在 `trials` 中，并通过 `phase` 字段区分。
 - 每条提交试次都统一包含 `trial_id`、`session_id`、`participant`、`experiment`、`phase`、`trial_number`、`trial_status`、`cond`、`rt`、`correct` 和 `response`；原始实验字段也会保留，便于分别分析 Posner、视觉搜索和面孔变化条件。
 - 当前课程示例只明确展示 `trials` 字段，没有说明服务端是否接收独立的 `gaze_samples` 或 `events` 数组。因此本版本不擅自将高频眼动原始样本和完整事件日志发送至接口；它们仍保存在 IndexedDB / localStorage，可通过本地备份导出。试次内眼动样本数量作为摘要字段随 trial 上传。
+
+### 统一试次 JSON 格式
+
+接口顶层字段遵循课程示例；不同实验的条件差异放在每条试次的 `cond` 和原始字段中：
+
+```json
+{
+  "project": "ABC234",
+  "experiment": "posner",
+  "participant": "P01",
+  "condition": "",
+  "trials": [
+    {
+      "trial_id": "session-id:trial:formal:1",
+      "session_id": "session-id",
+      "phase": "formal",
+      "trial_number": 1,
+      "trial_status": "completed",
+      "cond": "cue=外周线索; validity=有效; soa_ms=200; target_side=左",
+      "rt": 523,
+      "correct": true,
+      "response": "a"
+    }
+  ]
+}
+```
+
+- Posner 的 `cond` 描述线索类型、有效性、SOA 和目标位置；视觉搜索描述搜索类型、集合大小和目标有无；面孔变化检测描述是否变化、变化部位和 A/B 方向。
+- `rt` 统一以毫秒表示；超时或无可用反应时记为 `null`；无法评分的 `correct` 记为 `null`。
+- 每条试次保留 `practice/formal`、原始刺激条件、反应状态及实验特有字段。分析正式实验时按 `phase = formal` 筛选。
+- 示例中的 `ABC234` 仅为格式示例；实际项目编号应填写在 `hw2-config.js`。
 - 上传成功、失败、未配置项目编号等状态会在实验结果页和主页 Data Archive 显示。失败数据保留在本机，可在项目编号配置正确、网络恢复后手动重试。
 - 页面意外关闭时，浏览器会尽力将 Session 标记为 `interrupted` 并保存本机数据；由于页面关闭时无法可靠等待服务器响应，突然关闭的 Session 不保证即时上传。重新打开同一浏览器后，可在 Data Archive 重试。
 - 课程接口的实际响应格式、跨域策略、重复提交规则及可接收的最大 payload 尚未从课程示例中完整说明。首次正式收集前必须使用测试项目和测试被试验证；网络超时后手动重试可能产生重复记录，若平台未提供幂等去重，应在下载数据时按 `session_id` / `trial_id` 检查。
