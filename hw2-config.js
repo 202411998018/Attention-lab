@@ -4,5 +4,5 @@
  */
 window.ATTENTION_LAB_HW2_CONFIG = Object.freeze({
   endpoint: "https://attention-lab-production.up.railway.app/api/hw2/submit",
-  projectCode: ""
+  projectCode: "9JD4VB"
 });
