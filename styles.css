@@ -217,3 +217,11 @@
 .eye-validation-row b{color:#e6d6bb;font-weight:600}
 .eye-validation-note{max-width:760px;margin:16px auto!important;font-size:11px!important;color:#aebbb0!important}
 @media(max-width:620px){.eye-calibration-area,.eye-validation-area{width:94vw;height:48vh;min-height:250px}.eye-calibration-area .eye-dot{width:27px;height:27px}.eye-validation-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.eye-validation-metric{padding:11px 8px}.eye-validation-metric b{font-size:15px}}
+
+
+/* Keep the optional WebGazer camera preview visible above the experiment overlay. */
+#webgazerVideoContainer{position:fixed!important;top:auto!important;left:auto!important;right:16px!important;bottom:16px!important;width:180px!important;height:135px!important;z-index:60!important;border:1px solid rgba(236,225,204,.75);border-radius:12px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.35);background:#17211d}
+#webgazerVideoFeed,#webgazerVideoCanvas,#webgazerFaceOverlay{width:100%!important;height:100%!important;object-fit:cover}
+.eye-camera-check-note{max-width:650px;margin:18px auto;padding:12px 16px;border:1px solid rgba(211,225,212,.18);border-radius:10px;color:#b8c7b7;font-size:12px;line-height:1.8}
+.task-panel.eye-camera-panel{width:min(720px,100%)}
+@media(max-width:620px){#webgazerVideoContainer{right:10px!important;bottom:10px!important;width:132px!important;height:99px!important}}
