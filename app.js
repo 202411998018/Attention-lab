@@ -1266,6 +1266,17 @@ async function runEyeValidation() {
   };
 }
 
+function stopEyeTracking() {
+  if (eyeStarted && window.webgazer) {
+    try {
+      if (typeof window.webgazer.clearGazeListener === "function") window.webgazer.clearGazeListener();
+      if (typeof window.webgazer.pause === "function") window.webgazer.pause();
+      if (typeof window.webgazer.end === "function") window.webgazer.end();
+    } catch (_) {}
+  }
+  eyeStarted = false;
+}
+
 function beginInstructions() {
   active = true;
   currentTrialContext = null;
