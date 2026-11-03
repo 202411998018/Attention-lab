@@ -962,6 +962,7 @@ async function startEyeCalibration() {
     showEyeCameraCheck();
   } catch (error) {
     try {
+      if (webgazer && typeof webgazer.clearGazeListener === "function") webgazer.clearGazeListener();
       if (webgazer && typeof webgazer.pause === "function") webgazer.pause();
       if (webgazer && typeof webgazer.end === "function") webgazer.end();
     } catch (_) {}
@@ -1250,8 +1251,8 @@ async function runEyeValidation() {
     recordEvent("eye_tracking_ready", { validation_points_with_error: errors.length });
     beginInstructions();
   };
-  $("#eye-recalibrate").onclick = () => {
-    try { if (typeof window.webgazer.clearData === "function") window.webgazer.clearData(); } catch (_) {}
+  $("#eye-recalibrate").onclick = async () => {
+    try { if (typeof window.webgazer.clearData === "function") await window.webgazer.clearData(); } catch (_) {}
     eyeCalibrationContext = { phase: "calibration", trial_number: "", started_perf: performance.now() };
     recordEvent("eye_recalibration_requested");
     runNinePointEyeCalibration();
