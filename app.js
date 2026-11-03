@@ -40,6 +40,13 @@ const DB_NAME = "AttentionLabData";
 const DB_VERSION = 1;
 const DB_STORES = ["sessions", "trials", "gaze", "events"];
 const GAZE_CHUNK_SIZE = 50;
+const HW2_ENDPOINT = "https://attention-lab-production.up.railway.app/api/hw2/submit";
+const HW2_EXPERIMENT_SLUGS = {
+  posner: "posner",
+  search: "visual_search",
+  change: "change_blindness"
+};
+const HW2_UPLOAD_PROMISES = new Map();
 const FACE_BASE = "assets/face-change-stimuli/";
 const FACE_PAIRS = [
   { feature: "注视方向", key: "gaze", a: "01_gaze_left.svg", b: "02_gaze_right.svg" },
@@ -160,10 +167,10 @@ function showSetup(id) {
   $("#task-progress").style.width = "0%";
   panel(
     "实验参与与设备检查",
-    '<p>本实验会记录匿名参与者编号、每个试次的刺激条件、按键反应、正确与否及反应时间。数据仅保存在当前浏览器，实验结束后可下载 CSV。</p>' +
+    '<p>本实验会记录匿名参与者编号、刺激条件、按键反应、正确与否及反应时间。匿名试次数据将在实验结束或主动退出时提交至课程收数平台，同时保留在当前浏览器中作为备份。</p>' +
     '<label class="task-muted" for="participant-id">匿名参与者编号（请勿填写姓名或学号）</label><br>' +
     '<input class="participant-input" id="participant-id" maxlength="24" value="' + escapeHtml(participant) + '">' +
-    '<p><label><input type="checkbox" id="consent"> 我已阅读说明，并同意以匿名方式参与本次实验。</label></p>' +
+    '<p><label><input type="checkbox" id="consent"> 我已阅读说明，并同意以匿名方式参与实验，且知悉匿名试次数据将提交至课程收数平台。</label></p>' +
     '<div class="eye-status">眼动追踪为可选探索功能；若本地 WebGazer 文件未安装，行为实验仍可正常进行。</div>',
     '<div class="task-choice"><button class="task-button" id="setup-next">继续</button><button class="task-button secondary" id="task-cancel">返回</button></div>'
   );
@@ -383,6 +390,221 @@ function updateSessionMeta(patch) {
   queueDataRecord("sessions", sessionMeta);
 }
 
+function getHw2ProjectCode() {
+  const config = window.ATTENTION_LAB_HW2_CONFIG || {};
+  return String(config.projectCode || "").trim().toUpperCase();
+}
+
+function isHw2Configured() {
+  return /^[A-Z0-9]{6}$/.test(getHw2ProjectCode());
+}
+
+function hw2ExperimentName(experimentId) {
+  return HW2_EXPERIMENT_SLUGS[experimentId] || String(experimentId || "unknown");
+}
+
+function buildHw2Condition(row, experimentId) {
+  if (experimentId === "posner") {
+    return [
+      "cue=" + (row.cue_type || ""),
+      "validity=" + (row.cue_validity || row.validity || ""),
+      "soa_ms=" + (row.soa_actual_ms || row.soa_requested_ms || ""),
+      "target_side=" + (row.target_side || "")
+    ].join("; ");
+  }
+  if (experimentId === "search") {
+    return [
+      "search_type=" + (row.search_type || ""),
+      "set_size=" + (row.set_size === undefined ? "" : row.set_size),
+      "target_present=" + (row.target_present === undefined ? "" : row.target_present)
+    ].join("; ");
+  }
+  return [
+    "change_present=" + (row.changed === undefined ? "" : row.changed),
+    "feature=" + (row.feature || ""),
+    "direction=" + (row.direction || "")
+  ].join("; ");
+}
+
+function normalizeHw2Trial(row, session) {
+  const rtValue = row.rt_ms !== undefined && row.rt_ms !== null && row.rt_ms !== ""
+    ? Number(row.rt_ms)
+    : (row.decision_rt_ms !== undefined && row.decision_rt_ms !== null && row.decision_rt_ms !== ""
+      ? Number(row.decision_rt_ms) : null);
+  const response = row.response_key || row.response_side || row.decision ||
+    (row.response_present === true ? "present" : row.response_present === false ? "absent" : "");
+  return Object.assign({}, row, {
+    trial_id: row.record_id || "",
+    session_id: session.session_id || "",
+    participant: session.participant || "",
+    experiment: hw2ExperimentName(session.experiment),
+    phase: row.phase || "",
+    trial_number: row.trial_number === undefined ? "" : row.trial_number,
+    trial_status: row.trial_status || "",
+    cond: buildHw2Condition(row, session.experiment),
+    rt: Number.isFinite(rtValue) ? rtValue : null,
+    correct: typeof row.correct === "boolean" ? row.correct : null,
+    response: response || "",
+    session_status: session.status || "",
+    eye_tracking_enabled: !!row.eye_tracking_enabled,
+    gaze_samples_in_trial: Number(row.gaze_samples_in_trial || 0),
+    gaze_valid_samples_in_trial: Number(row.gaze_valid_samples_in_trial || 0)
+  });
+}
+
+function updateHw2SessionRecord(targetSessionId, patch) {
+  if (sessionMeta && sessionMeta.session_id === targetSessionId) {
+    updateSessionMeta(patch);
+    return sessionMeta;
+  }
+  const rows = readStoredArray(STORAGE_SESSIONS);
+  const existing = rows.find((row) => row.session_id === targetSessionId) || {
+    record_id: targetSessionId, session_id: targetSessionId
+  };
+  const updated = Object.assign({}, existing, patch, { updated_at: new Date().toISOString() });
+  upsertStoredArray(STORAGE_SESSIONS, updated);
+  queueDataRecord("sessions", updated);
+  return updated;
+}
+
+function renderHw2UploadStatus(targetSessionId) {
+  const statusElement = $("#hw2-upload-status");
+  const retryButton = $("#hw2-upload-retry");
+  if (!statusElement) return;
+  const stored = readStoredArray(STORAGE_SESSIONS).find((row) => row.session_id === targetSessionId);
+  const current = sessionMeta && sessionMeta.session_id === targetSessionId ? sessionMeta : stored;
+  const status = current && current.hw2_upload_status || (isHw2Configured() ? "pending" : "not_configured");
+  const messages = {
+    not_configured: "课程项目编号尚未配置。数据已保存在本机，配置项目编号后即可提交。",
+    pending: "数据已保存在本机，等待提交至课程 HW2 收数平台。",
+    uploading: "正在提交数据至课程 HW2 收数平台……",
+    uploaded: "数据已成功提交至课程 HW2 收数平台。",
+    failed: "上传失败，数据仍保存在本机。请检查网络后重试。",
+    no_trials: "本次没有产生可提交的试次记录；本地 Session 仍已保留。"
+  };
+  statusElement.textContent = messages[status] || "数据已保存在本机。";
+  statusElement.dataset.status = status;
+  if (retryButton) {
+    retryButton.disabled = !isHw2Configured() || status === "uploading" || status === "uploaded" || status === "no_trials";
+    retryButton.textContent = status === "failed" ? "重试上传" : "提交 / 重试上传";
+  }
+}
+
+async function submitSessionToHw2(targetSessionId) {
+  if (!targetSessionId) return false;
+  if (HW2_UPLOAD_PROMISES.has(targetSessionId)) return HW2_UPLOAD_PROMISES.get(targetSessionId);
+  const task = (async () => {
+    if (!isHw2Configured()) {
+      updateHw2SessionRecord(targetSessionId, {
+        hw2_upload_status: "not_configured",
+        hw2_upload_message: "请在 hw2-config.js 中配置六位项目编号。"
+      });
+      renderHw2UploadStatus(targetSessionId);
+      await refreshDataArchive();
+      return false;
+    }
+    const [sessions, trials] = await Promise.all([
+      getAllLocalRecords("sessions"), getAllLocalRecords("trials")
+    ]);
+    const session = sessions.find((row) => row.session_id === targetSessionId);
+    if (!session) return false;
+    if (session.hw2_upload_status === "uploaded") {
+      renderHw2UploadStatus(targetSessionId);
+      return true;
+    }
+    if (session.status === "in_progress") return false;
+    const sessionTrials = trials
+      .filter((row) => row.session_id === targetSessionId)
+      .sort((a, b) => {
+        const ta = Date.parse(a.trial_started_at || "") || 0;
+        const tb = Date.parse(b.trial_started_at || "") || 0;
+        return ta - tb || Number(a.trial_number || 0) - Number(b.trial_number || 0);
+      });
+    if (!sessionTrials.length) {
+      updateHw2SessionRecord(targetSessionId, {
+        hw2_upload_status: "no_trials",
+        hw2_upload_message: "没有可提交的试次记录。"
+      });
+      renderHw2UploadStatus(targetSessionId);
+      await refreshDataArchive();
+      return false;
+    }
+    updateHw2SessionRecord(targetSessionId, {
+      hw2_upload_status: "uploading",
+      hw2_upload_started_at: new Date().toISOString(),
+      hw2_upload_error: ""
+    });
+    renderHw2UploadStatus(targetSessionId);
+    const payload = {
+      project: getHw2ProjectCode(),
+      experiment: hw2ExperimentName(session.experiment),
+      participant: session.participant || "P-ANON",
+      condition: "",
+      trials: sessionTrials.map((row) => normalizeHw2Trial(row, session))
+    };
+    try {
+      const response = await fetch(HW2_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        mode: "cors",
+        cache: "no-store",
+        credentials: "omit"
+      });
+      const responseText = await response.text();
+      let responseData = null;
+      try { responseData = responseText ? JSON.parse(responseText) : null; } catch (_) {}
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status + (responseText ? "：" + responseText.slice(0, 240) : ""));
+      }
+      if (responseData && (responseData.ok === false || responseData.success === false)) {
+        throw new Error(responseData.message || responseData.error || "收数接口返回失败状态");
+      }
+      updateHw2SessionRecord(targetSessionId, {
+        hw2_upload_status: "uploaded",
+        hw2_uploaded_at: new Date().toISOString(),
+        hw2_uploaded_trial_count: payload.trials.length,
+        hw2_upload_error: "",
+        hw2_response: responseText.slice(0, 500)
+      });
+      renderHw2UploadStatus(targetSessionId);
+      await refreshDataArchive();
+      return true;
+    } catch (error) {
+      updateHw2SessionRecord(targetSessionId, {
+        hw2_upload_status: "failed",
+        hw2_upload_failed_at: new Date().toISOString(),
+        hw2_upload_error: String(error && error.message || error)
+      });
+      renderHw2UploadStatus(targetSessionId);
+      await refreshDataArchive();
+      return false;
+    }
+  })();
+  HW2_UPLOAD_PROMISES.set(targetSessionId, task);
+  try { return await task; }
+  finally { HW2_UPLOAD_PROMISES.delete(targetSessionId); }
+}
+
+async function retryPendingHw2Uploads() {
+  if (!isHw2Configured()) {
+    alert("请先在 hw2-config.js 中填写课程项目编号。");
+    return;
+  }
+  const sessions = await getAllLocalRecords("sessions");
+  const terminal = new Set(["completed", "abandoned", "interrupted"]);
+  const candidates = sessions.filter((row) =>
+    terminal.has(row.status) &&
+    !["uploaded", "uploading", "no_trials"].includes(row.hw2_upload_status)
+  );
+  if (!candidates.length) {
+    alert("当前没有待提交或上传失败的 Session。");
+    return;
+  }
+  for (const row of candidates) await submitSessionToHw2(row.session_id);
+  await refreshDataArchive();
+}
+
 function recordEvent(eventName, details) {
   if (!sessionId) return null;
   const now = performance.now();
@@ -550,9 +772,22 @@ async function refreshDataArchive() {
     getAllLocalRecords("gaze"), getAllLocalRecords("events")
   ]);
   const incomplete = sessions.filter((row) => row.status !== "completed").length;
+  const uploaded = sessions.filter((row) => row.hw2_upload_status === "uploaded").length;
+  const pending = sessions.filter((row) =>
+    ["completed", "abandoned", "interrupted"].includes(row.status) &&
+    !["uploaded", "no_trials"].includes(row.hw2_upload_status)
+  ).length;
   summary.textContent = "本机记录：" + sessions.length + " 个 Session · " + trials.length +
     " 条试次 · " + gaze.length + " 条眼动样本 · " + events.length +
-    " 条事件；其中未完成/中断 Session：" + incomplete + " 个。";
+    " 条事件；未完成/中断 " + incomplete + " 个。";
+  const uploadSummary = $("#hw2-archive-status");
+  if (uploadSummary) {
+    uploadSummary.textContent = isHw2Configured()
+      ? "课程项目 " + getHw2ProjectCode() + " · 已上传 " + uploaded + " 个 Session · 待提交/失败 " + pending + " 个。"
+      : "尚未配置课程项目编号。当前数据仍会保存在本机；配置编号后即可提交。";
+  }
+  const retryButton = $("#hw2-retry-pending");
+  if (retryButton) retryButton.disabled = !isHw2Configured() || pending === 0;
 }
 
 function startNewSession() {
@@ -574,6 +809,7 @@ function startNewSession() {
     record_id: sessionId, session_id: sessionId, participant,
     experiment: selected.id, started_at: sessionStartIso,
     status: "in_progress", phase: "setup",
+    hw2_upload_status: isHw2Configured() ? "pending" : "not_configured",
     eye_consent: null, eye_tracking_status: "not_started",
     user_agent: navigator.userAgent || "", language: navigator.language || "",
     screen_width: window.screen ? window.screen.width : "",
@@ -1417,10 +1653,12 @@ function finishTask() {
     '<div class="result-line"><span>眼动追踪</span><b>' + (eyeEnabled ? "已启用（探索性）" : "未启用") + '</b></div>' +
     '<div class="result-line"><span>本次眼动样本</span><b>' + sessionGaze.length + '</b></div>' +
     '</div>' +
-    '<p class="task-muted">数据已保存在当前浏览器。未完成试次会单独标记；清除浏览器数据或更换设备前，请从主页 Data Archive 导出备份。</p>' + storageWarningHtml,
+    '<div class="hw2-upload-status" id="hw2-upload-status" role="status" aria-live="polite">正在准备提交至课程收数平台……</div>' +
+    '<p class="task-muted">完整试次记录将提交至课程 HW2 收数平台；眼动原始样本和完整事件日志仍保留在本机备份中。请勿清除浏览器数据，直到确认上传成功。</p>' + storageWarningHtml,
     '<div class="task-choice"><button class="task-button" id="download-session">下载本次试次 CSV</button>' +
     '<button class="task-button secondary" id="download-gaze">下载本次眼动 CSV</button>' +
     '<button class="task-button secondary" id="download-all">下载本机累计数据 CSV</button>' +
+    '<button class="task-button secondary" id="hw2-upload-retry">提交 / 重试上传</button>' +
     '<button class="task-button secondary" id="finish-close">返回网站</button></div>'
   );
   $("#download-session").onclick = () => downloadCSV(sessionRows, selected.id + "-" + participant + "-trials.csv");
@@ -1432,8 +1670,11 @@ function finishTask() {
     downloadCSV(sessionGaze, selected.id + "-" + participant + "-gaze.csv");
   };
   $("#download-all").onclick = downloadAllLocalData;
+  $("#hw2-upload-retry").onclick = () => submitSessionToHw2(sessionId);
   $("#finish-close").onclick = exitTask;
   persistSessionGaze();
+  renderHw2UploadStatus(sessionId);
+  submitSessionToHw2(sessionId);
   refreshDataArchive();
 }
 
@@ -1508,6 +1749,9 @@ function exitTask() {
   stopEyeTracking();
   eyeEnabled = false;
   flushPendingData();
+  if (sessionMeta && ["completed", "abandoned", "interrupted"].includes(sessionMeta.status)) {
+    submitSessionToHw2(sessionMeta.session_id);
+  }
   taskOverlay.classList.remove("open");
   taskOverlay.setAttribute("aria-hidden", "true");
   $("#task-progress").style.width = "0%";
@@ -1521,6 +1765,7 @@ function handlePageHide() {
       status: "interrupted",
       interrupted_at: new Date().toISOString(),
       end_reason: "pagehide",
+      hw2_upload_status: isHw2Configured() ? "pending" : "not_configured",
       eye_tracking_status: eyeStarted ? "interrupted" : sessionMeta.eye_tracking_status
     });
     recordEvent("session_interrupted", { end_reason: "pagehide" });
