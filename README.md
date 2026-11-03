@@ -26,7 +26,7 @@ Then visit http://localhost:8000.
 ## Notes
 
 - This is an initial educational prototype. Validate timing and stimulus presentation on the actual testing devices before collecting formal research data.
-- Webcam eye tracking uses the pinned WebGazer 3.5.3 browser build from jsDelivr. It is optional and requires a secure HTTPS page, a compatible browser, a webcam, and an internet connection to load the library. Camera video is processed in the browser and is not recorded or uploaded. Raw gaze coordinates are retained in the local IndexedDB/localStorage archive and are not sent to HW2; trial-level gaze sample counts remain part of the trial summary. The workflow includes 9-point calibration (5 clicks per point) and a separate 5-point validation report. Validation metrics are exploratory and have no universal pass threshold. The WebGazer bundle's Face Mesh runtime assets are also pinned to `@mediapipe/face_mesh@0.4.1633559619` and loaded from jsDelivr (Apache-2.0; see [MediaPipe license](https://github.com/google-ai-edge/mediapipe/blob/master/LICENSE)). WebGazer is GPL-3.0-or-later; see [its license](https://github.com/brownhci/WebGazer/blob/master/LICENSE.md). Official maintenance ended on February 24, 2026, so pinning the version avoids silent updates.
+- Webcam eye tracking lazily loads the pinned WebGazer 3.5.3 browser build from jsDelivr only after opt-in. It is optional and requires a secure HTTPS page, a compatible browser, a webcam, and an internet connection to load the library. Camera video is processed in the browser and is not recorded or uploaded. Raw gaze coordinates are retained in the local IndexedDB/localStorage archive and are not sent to HW2; trial-level gaze sample counts remain part of the trial summary. The workflow includes 9-point calibration (5 clicks per point) and a separate 5-point validation report. Validation metrics are exploratory and have no universal pass threshold. The WebGazer bundle's Face Mesh runtime assets are also pinned to `@mediapipe/face_mesh@0.4.1633559619` and loaded from jsDelivr (Apache-2.0; see [MediaPipe license](https://github.com/google-ai-edge/mediapipe/blob/master/LICENSE)). WebGazer is GPL-3.0-or-later; see [its license](https://github.com/brownhci/WebGazer/blob/master/LICENSE.md). Official maintenance ended on February 24, 2026, so pinning the version avoids silent updates.
 - Trial data is submitted to the course HW2 endpoint after a session is completed or the participant exits; a local IndexedDB/localStorage backup is retained. Raw gaze samples and full event logs remain local because the course example only documents a `trials` array. Configure the six-character project code in `hw2-config.js`; never put the download key in frontend code. Do not enter names, student IDs, or other direct identifiers.
 - Demo/example values are not real participant data.
 
@@ -36,6 +36,7 @@ Then visit http://localhost:8000.
 - `styles.css` — visual system and responsive layouts
 - `app.js` — navigation, experiment flows, trial logging, HW2 submission, local backup, summaries, and CSV export
 - `hw2-config.js` — course HW2 project code and endpoint configuration (no download key)
+- `eye-tracking.js` — optional consent-only WebGazer 3.5.3 loader
 - `docs/experiment-design.md` — task rationale, conditions, and hypotheses
 
 ## Experiments
@@ -52,6 +53,6 @@ See [Experiment design](docs/experiment-design.md) for a concise description of 
 
 1. Validate trial timing and condition balance.
 2. Pilot each task with a small number of participants.
-3. Add and validate the locally hosted WebGazer integration.
+3. Pilot the consent-only WebGazer integration on real cameras; check calibration, validation, sample logging and data export.
 4. Configure a test project code in `hw2-config.js` and verify one test submission and the downloaded records in the course HW2 dashboard.
 5. Preregister hypotheses, exclusions, and analysis decisions before formal data collection.
