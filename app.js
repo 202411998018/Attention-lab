@@ -208,7 +208,7 @@ function showSetup(id) {
     '<label class="task-muted" for="participant-id">匿名参与者编号（请勿填写姓名或学号）</label><br>' +
     '<input class="participant-input" id="participant-id" maxlength="24" value="' + escapeHtml(participant) + '">' +
     '<p><label><input type="checkbox" id="consent"> 我已阅读说明，并同意以匿名方式参与实验，且知悉匿名试次数据将提交至课程收数平台。</label></p>' +
-    '<div class="eye-status">眼动追踪为可选探索功能；若本地 WebGazer 文件未安装，行为实验仍可正常进行。</div>',
+    '<div class="eye-status">眼动追踪为可选功能：使用摄像头进行本地注视估计；视频不录制、不上传，原始注视坐标保存在本机。拒绝摄像头权限不影响行为实验。</div>',
     '<div class="task-choice"><button class="task-button" id="setup-next">继续</button><button class="task-button secondary" id="task-cancel">返回</button></div>'
   );
   $("#setup-next").onclick = () => {
@@ -761,10 +761,18 @@ function recordGazeSample(data, webgazerElapsedTime) {
     viewport_width: width,
     viewport_height: height,
     device_pixel_ratio: window.devicePixelRatio || 1,
-    gaze_valid: valid
+    gaze_valid: valid,
+    validation_point: context.validation_point || "",
+    validation_target_x_px: context.validation_point ? Number(context.target_x_px.toFixed(1)) : "",
+    validation_target_y_px: context.validation_point ? Number(context.target_y_px.toFixed(1)) : ""
   };
   sessionGaze.push(sample);
   queueDataRecord("gaze", sample);
+  if (Array.isArray(context.samples) &&
+      (!Number.isFinite(context.validation_collect_after_ms) ||
+       now - context.started_perf >= context.validation_collect_after_ms)) {
+    context.samples.push(sample);
+  }
   if (context === currentTrialContext) {
     context.gaze_samples += 1;
     if (valid) context.gaze_valid_samples += 1;
@@ -871,24 +879,35 @@ function startNewSession() {
 function eyeSetup() {
   const available = !!(window.webgazer && typeof window.webgazer.begin === "function");
   if (!available) {
-    updateSessionMeta({ eye_consent: false, eye_tracking_status: "unavailable" });
+    updateSessionMeta({
+      eye_consent: false,
+      eye_tracking_status: "unavailable",
+      eye_error: "WebGazer 3.5.3 未加载；请检查网络连接或浏览器脚本拦截。"
+    });
     recordEvent("eye_tracking_unavailable");
     panel(
-      "行为实验可正常进行",
-      '<p>当前仓库没有安装本地 WebGazer 文件，因此本次无法启动摄像头眼动追踪。三个行为实验和试次数据记录不受影响。</p>' +
-      '<div class="eye-status">眼动状态：未启用（本次不会生成眼动数据）。</div>',
-      '<button class="task-button" id="eye-skip">进入实验说明</button>'
+      "眼动模块暂不可用",
+      '<p>眼动组件未能加载。请检查网络连接、浏览器扩展或 CDN 访问情况。你仍然可以跳过眼动，正常完成三个行为实验。</p>' +
+      '<div class="eye-status">眼动状态：未启用；行为试次仍会正常记录并提交。</div>',
+      '<button class="task-button" id="eye-skip">跳过眼动，进入实验说明</button>'
     );
     $("#eye-skip").onclick = beginInstructions;
     return;
   }
   panel(
-    "是否启用眼动追踪？",
-    '<p>如果设备具有摄像头且浏览器允许访问，可以启用基于摄像头的注视估计。眼动数据仅保存在本机，精度需要在正式使用前单独验证。</p>',
-    '<div class="task-choice"><button class="task-button" id="eye-enable">启用并校准</button><button class="task-button secondary" id="eye-skip">跳过</button></div>'
+    "是否启用摄像头眼动追踪？",
+    '<p>启用后，浏览器会请求摄像头权限，并在本机实时估计注视位置。摄像头视频不会录制或上传；原始注视坐标保存在当前浏览器，不随 HW2 提交。你可以随时跳过眼动，继续行为实验。</p>' +
+    '<div class="eye-status">建议使用 HTTPS、正对屏幕、保持头部相对稳定，并确保面部光照充足。眼动估计仅用于探索性分析。</div>',
+    '<div class="task-choice"><button class="task-button" id="eye-enable">同意并开始校准</button><button class="task-button secondary" id="eye-skip">不同意，跳过眼动</button></div>'
   );
   $("#eye-enable").onclick = () => {
-    updateSessionMeta({ eye_consent: true, eye_tracking_status: "consented" });
+    updateSessionMeta({
+      eye_consent: true,
+      eye_tracking_status: "consented",
+      eye_tracking_library: "WebGazer 3.5.3",
+      eye_raw_data_storage: "local_only",
+      eye_video_recording: false
+    });
     recordEvent("eye_consent_granted");
     startEyeCalibration();
   };
@@ -900,83 +919,317 @@ function eyeSetup() {
 }
 
 async function startEyeCalibration() {
+  const webgazer = window.webgazer;
   try {
-    await window.webgazer.begin();
+    if (window.isSecureContext === false && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      throw new Error("摄像头访问需要 HTTPS 安全连接，请通过 GitHub Pages 的 https:// 地址打开实验。");
+    }
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      throw new Error("当前浏览器不支持摄像头访问，请使用新版 Chrome、Edge 或 Firefox。");
+    }
+    if (typeof webgazer.saveDataAcrossSessions === "function") webgazer.saveDataAcrossSessions(false);
+    if (typeof webgazer.setGazeListener === "function") {
+      webgazer.setGazeListener((data, elapsedTime) => recordGazeSample(data, elapsedTime));
+    }
+    await webgazer.begin();
     eyeEnabled = true;
     eyeStarted = true;
-    eyeCalibrationContext = { phase: "calibration", trial_number: "", started_perf: performance.now() };
-    updateSessionMeta({ eye_tracking_status: "calibrating", eye_started_at: new Date().toISOString() });
-    recordEvent("eye_tracking_started");
-    window.webgazer.setGazeListener((data, elapsedTime) => recordGazeSample(data, elapsedTime));
-    const points = [];
-    for (let row = 0; row < 3; row++) {
-      for (let col = 0; col < 3; col++) points.push([(col + 1) / 4, (row + 1) / 4]);
-    }
-    let completed = 0;
-    panel(
-      "九点点击校准",
-      '<p>依次点击九个圆点，并尽量注视圆点位置。该步骤仅为探索性校准，不代表眼动精度已经通过验证。</p>' +
-      '<div class="eye-calibration">' + points.map((_, index) =>
-        '<button class="eye-dot" data-eye-dot="' + index + '" aria-label="校准点 ' + (index + 1) + '"></button>'
-      ).join("") + '</div><div class="eye-status" id="eye-count">已完成 0 / 9</div>'
-    );
-    document.querySelectorAll("[data-eye-dot]").forEach((dot, index) => {
-      dot.onclick = () => {
-        const point = points[index];
-        try {
-          if (window.webgazer.recordScreenPosition) {
-            window.webgazer.recordScreenPosition(window.innerWidth * point[0], window.innerHeight * point[1], "click");
-          }
-        } catch (_) {}
-        recordEvent("calibration_point", {
-          calibration_point: index + 1,
-          target_x_px: Math.round(window.innerWidth * point[0]),
-          target_y_px: Math.round(window.innerHeight * point[1])
-        });
-        dot.disabled = true;
-        dot.style.opacity = ".25";
-        completed += 1;
-        $("#eye-count").textContent = "已完成 " + completed + " / 9";
-        if (completed === 9) {
-          recordEvent("eye_calibration_completed", { calibration_points_completed: completed });
-          eyeCalibrationContext = null;
-          updateSessionMeta({
-            eye_tracking_status: "calibration_completed",
-            calibration_points_completed: completed,
-            calibration_completed_at: new Date().toISOString()
-          });
-          setTimeout(beginInstructions, 500);
-        }
-      };
+    try {
+      if (typeof webgazer.showVideoPreview === "function") webgazer.showVideoPreview(true);
+      if (typeof webgazer.showPredictionPoints === "function") webgazer.showPredictionPoints(false);
+      if (typeof webgazer.applyKalmanFilter === "function") webgazer.applyKalmanFilter(true);
+    } catch (_) {}
+    eyeCalibrationContext = {
+      phase: "calibration",
+      trial_number: "",
+      started_perf: performance.now()
+    };
+    updateSessionMeta({
+      eye_tracking_status: "calibrating",
+      eye_started_at: new Date().toISOString(),
+      eye_tracking_library: "WebGazer 3.5.3",
+      eye_save_data_across_sessions: false
     });
+    recordEvent("eye_tracking_started", { library: "WebGazer 3.5.3" });
+    await sleep(700);
+    runNinePointEyeCalibration();
   } catch (error) {
-    stopEyeTracking();
+    try {
+      if (webgazer && typeof webgazer.pause === "function") webgazer.pause();
+      if (webgazer && typeof webgazer.end === "function") webgazer.end();
+    } catch (_) {}
     eyeEnabled = false;
     eyeStarted = false;
     eyeCalibrationContext = null;
+    const message = String(error && error.message || error);
     updateSessionMeta({
       eye_tracking_status: "failed",
-      eye_error: String(error && error.message || error),
+      eye_error: message,
       eye_failed_at: new Date().toISOString()
     });
-    recordEvent("eye_tracking_failed", { error: String(error && error.message || error) });
+    recordEvent("eye_tracking_failed", { error: message });
     panel(
       "眼动初始化失败",
-      '<p>摄像头权限或眼动模块初始化失败。可以跳过眼动追踪，继续完成行为实验。</p>',
-      '<button class="task-button" id="eye-failed-continue">继续</button>'
+      '<p>摄像头权限或眼动模块初始化失败。请检查浏览器地址栏中的摄像头权限，并确认没有其他程序独占摄像头。</p>' +
+      '<div class="eye-status">错误信息：' + escapeHtml(message) + '</div>',
+      '<button class="task-button" id="eye-failed-continue">跳过眼动，继续行为实验</button>'
     );
     $("#eye-failed-continue").onclick = beginInstructions;
   }
 }
 
-function stopEyeTracking() {
-  if (eyeStarted && window.webgazer) {
-    try {
-      if (typeof window.webgazer.pause === "function") window.webgazer.pause();
-      if (typeof window.webgazer.end === "function") window.webgazer.end();
-    } catch (_) {}
+function runNinePointEyeCalibration() {
+  const positions = [
+    { x: 8, y: 10 }, { x: 50, y: 10 }, { x: 92, y: 10 },
+    { x: 8, y: 50 }, { x: 50, y: 50 }, { x: 92, y: 50 },
+    { x: 8, y: 90 }, { x: 50, y: 90 }, { x: 92, y: 90 }
+  ];
+  const clicksRequired = 5;
+  let completedPoints = 0;
+  updateSessionMeta({
+    eye_tracking_status: "calibrating",
+    calibration_attempts: Number(sessionMeta && sessionMeta.calibration_attempts || 0) + 1,
+    calibration_points_required: 9,
+    calibration_clicks_per_point: clicksRequired
+  });
+  const dots = positions.map((point, index) =>
+    '<button class="eye-dot" data-eye-dot="' + index + '" data-clicks="0" ' +
+    'style="left:' + point.x + '%;top:' + point.y + '%" aria-label="校准点 ' + (index + 1) + '，需要点击五次">0/5</button>'
+  ).join("");
+  panel(
+    "九点眼动校准",
+    '<p class="eye-calibration-intro">请依次注视每个圆点，并在保持注视的同时点击该点五次。每个圆点完成五次点击后会变为绿色。请尽量保持头部稳定。</p>' +
+    '<div class="eye-calibration-area">' + dots + '</div>' +
+    '<div class="eye-status" id="eye-count">已完成 0 / 9 个点；每个点需要点击 5 次。</div>',
+    '<button class="task-button secondary" id="eye-calibration-skip">跳过眼动，继续行为实验</button>',
+    "eye-calibration-panel"
+  );
+  document.querySelectorAll("[data-eye-dot]").forEach((dot, index) => {
+    dot.onclick = () => {
+      if (dot.disabled) return;
+      const rect = dot.getBoundingClientRect();
+      const targetX = rect.left + rect.width / 2;
+      const targetY = rect.top + rect.height / 2;
+      const clicks = Number(dot.dataset.clicks || 0) + 1;
+      dot.dataset.clicks = String(clicks);
+      try {
+        if (window.webgazer && typeof window.webgazer.recordScreenPosition === "function") {
+          window.webgazer.recordScreenPosition(targetX, targetY, "click");
+        }
+      } catch (_) {}
+      recordEvent("calibration_click", {
+        calibration_point: index + 1,
+        click_in_point: clicks,
+        target_x_px: Number(targetX.toFixed(1)),
+        target_y_px: Number(targetY.toFixed(1))
+      });
+      dot.textContent = clicks + "/" + clicksRequired;
+      dot.style.opacity = String(0.45 + 0.11 * clicks);
+      if (clicks >= clicksRequired) {
+        dot.disabled = true;
+        dot.classList.add("is-calibrated");
+        completedPoints += 1;
+      }
+      $("#eye-count").textContent = "已完成 " + completedPoints + " / 9 个点；当前点点击 " +
+        (clicks >= clicksRequired ? clicksRequired : clicks) + " / " + clicksRequired + " 次。";
+      if (completedPoints === 9) {
+        recordEvent("eye_calibration_completed", {
+          calibration_points_completed: completedPoints,
+          calibration_clicks_per_point: clicksRequired
+        });
+        updateSessionMeta({
+          eye_tracking_status: "calibration_completed",
+          calibration_points_completed: completedPoints,
+          calibration_completed_at: new Date().toISOString()
+        });
+        $("#eye-count").textContent = "九点校准完成，正在准备独立验证……";
+        document.querySelectorAll("[data-eye-dot]").forEach((item) => { item.disabled = true; });
+        setTimeout(() => {
+          runEyeValidation().catch((error) => {
+            const message = String(error && error.message || error);
+            updateSessionMeta({ eye_tracking_status: "validation_failed", eye_validation_error: message });
+            recordEvent("eye_validation_failed", { error: message });
+            panel(
+              "校准验证未能完成",
+              '<p>九点校准已经完成，但独立验证遇到问题。你可以继续行为实验；本次眼动数据需要谨慎解释。</p>' +
+              '<div class="eye-status">' + escapeHtml(message) + '</div>',
+              '<div class="task-choice"><button class="task-button" id="eye-validation-continue">继续实验</button><button class="task-button secondary" id="eye-validation-skip">关闭眼动并继续</button></div>'
+            );
+            $("#eye-validation-continue").onclick = () => {
+              try { if (typeof window.webgazer.showVideoPreview === "function") window.webgazer.showVideoPreview(false); } catch (_) {}
+              eyeCalibrationContext = null;
+              updateSessionMeta({ eye_tracking_status: "ready_unvalidated" });
+              beginInstructions();
+            };
+            $("#eye-validation-skip").onclick = () => {
+              eyeEnabled = false;
+              eyeCalibrationContext = null;
+              stopEyeTracking();
+              updateSessionMeta({ eye_tracking_status: "validation_failed_skipped" });
+              beginInstructions();
+            };
+          });
+        }, 450);
+      }
+    };
+  });
+  $("#eye-calibration-skip").onclick = () => {
+    eyeEnabled = false;
+    eyeCalibrationContext = null;
+    stopEyeTracking();
+    updateSessionMeta({ eye_tracking_status: "skipped_during_calibration" });
+    recordEvent("eye_tracking_skipped_during_calibration");
+    beginInstructions();
+  };
+}
+
+function medianEyeValue(values) {
+  const sorted = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+async function runEyeValidation() {
+  const points = [
+    { x: 10, y: 12 }, { x: 90, y: 12 }, { x: 50, y: 50 },
+    { x: 10, y: 88 }, { x: 90, y: 88 }
+  ];
+  const settleMs = 300;
+  const measureMs = 1200;
+  const minimumSamplesPerPoint = 5;
+  panel(
+    "五点独立校准验证",
+    '<p class="eye-calibration-intro">接下来会依次出现五个验证点。请只注视圆点，不要点击。系统会在短暂稳定后记录注视估计；这些验证点不会用于训练校准模型。</p>' +
+    '<div class="eye-validation-area"><div class="eye-validation-dot" id="eye-validation-dot"></div></div>' +
+    '<div class="eye-status" id="eye-validation-status">准备验证……</div>',
+    "",
+    "eye-validation-panel"
+  );
+  const dot = $("#eye-validation-dot");
+  const status = $("#eye-validation-status");
+  const results = [];
+  let totalSamples = 0;
+  let validSamples = 0;
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index];
+    dot.style.left = point.x + "%";
+    dot.style.top = point.y + "%";
+    status.textContent = "验证点 " + (index + 1) + " / " + points.length + "：请注视圆点";
+    await sleep(100);
+    const rect = dot.getBoundingClientRect();
+    const targetX = rect.left + rect.width / 2;
+    const targetY = rect.top + rect.height / 2;
+    const context = {
+      phase: "validation",
+      trial_number: "",
+      validation_point: index + 1,
+      target_x_px: targetX,
+      target_y_px: targetY,
+      validation_collect_after_ms: settleMs,
+      started_perf: performance.now(),
+      samples: []
+    };
+    eyeCalibrationContext = context;
+    recordEvent("validation_point_onset", {
+      validation_point: index + 1,
+      target_x_px: Number(targetX.toFixed(1)),
+      target_y_px: Number(targetY.toFixed(1))
+    });
+    await sleep(settleMs + measureMs);
+    eyeCalibrationContext = null;
+    const pointSamples = context.samples;
+    const pointValid = pointSamples.filter((sample) => sample.gaze_valid);
+    totalSamples += pointSamples.length;
+    validSamples += pointValid.length;
+    const medianX = medianEyeValue(pointValid.map((sample) => Number(sample.x_px)));
+    const medianY = medianEyeValue(pointValid.map((sample) => Number(sample.y_px)));
+    const errorPx = pointValid.length >= minimumSamplesPerPoint && medianX !== null && medianY !== null
+      ? Math.hypot(medianX - targetX, medianY - targetY)
+      : null;
+    results.push({
+      point: index + 1,
+      samples: pointSamples.length,
+      valid_samples: pointValid.length,
+      median_gaze_x_px: medianX,
+      median_gaze_y_px: medianY,
+      target_x_px: Number(targetX.toFixed(1)),
+      target_y_px: Number(targetY.toFixed(1)),
+      error_px: errorPx === null ? null : Number(errorPx.toFixed(2))
+    });
+    recordEvent("validation_point_complete", {
+      validation_point: index + 1,
+      samples: pointSamples.length,
+      valid_samples: pointValid.length,
+      error_px: errorPx === null ? "" : Number(errorPx.toFixed(2))
+    });
+    status.textContent = "已完成验证点 " + (index + 1) + " / " + points.length;
   }
-  eyeStarted = false;
+  const errors = results.map((result) => result.error_px).filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  const meanError = errors.length ? errors.reduce((sum, value) => sum + value, 0) / errors.length : null;
+  const medianError = medianEyeValue(errors);
+  const p90Index = errors.length ? Math.min(errors.length - 1, Math.ceil(errors.length * 0.9) - 1) : -1;
+  const p90Error = p90Index >= 0 ? errors[p90Index] : null;
+  const summary = {
+    validation_points: points.length,
+    measurement_ms_per_point: measureMs,
+    settling_ms_per_point: settleMs,
+    minimum_valid_samples_per_point: minimumSamplesPerPoint,
+    total_samples: totalSamples,
+    valid_samples: validSamples,
+    valid_sample_ratio: totalSamples ? Number((validSamples / totalSamples).toFixed(4)) : 0,
+    samples_per_second: Number((totalSamples / (points.length * measureMs / 1000)).toFixed(2)),
+    points_with_estimable_error: errors.length,
+    mean_point_error_px: meanError === null ? null : Number(meanError.toFixed(2)),
+    median_point_error_px: medianError === null ? null : Number(medianError.toFixed(2)),
+    p90_point_error_px: p90Error === null ? null : Number(p90Error.toFixed(2)),
+    point_results: results
+  };
+  const statusValue = errors.length >= 3 ? "validated" : "validation_incomplete";
+  updateSessionMeta({
+    eye_tracking_status: statusValue,
+    eye_validation_summary: summary,
+    eye_validation_completed_at: new Date().toISOString()
+  });
+  recordEvent("eye_validation_completed", summary);
+  const formatPx = (value) => Number.isFinite(value) ? value.toFixed(1) + " px" : "有效样本不足";
+  const pointRows = results.map((result) =>
+    '<div class="eye-validation-row"><span>验证点 ' + result.point + '（有效样本 ' + result.valid_samples + '）</span><b>' +
+    formatPx(result.error_px) + '</b></div>'
+  ).join("");
+  panel(
+    "眼动校准报告",
+    '<div class="eye-validation-summary">' +
+    '<div class="eye-validation-metric"><span>平均点位误差</span><b>' + formatPx(summary.mean_point_error_px) + '</b></div>' +
+    '<div class="eye-validation-metric"><span>中位点位误差</span><b>' + formatPx(summary.median_point_error_px) + '</b></div>' +
+    '<div class="eye-validation-metric"><span>有效样本比例</span><b>' + (summary.valid_sample_ratio * 100).toFixed(1) + '%</b></div>' +
+    '<div class="eye-validation-metric"><span>估计采样频率</span><b>' + summary.samples_per_second.toFixed(1) + ' Hz</b></div>' +
+    '</div>' + pointRows +
+    '<p class="eye-validation-note">以上是本次设备与环境下的探索性质量指标，不代表专业眼动仪精度，也不自动判定校准合格。建议先通过小规模 pilot 确定质量控制标准。</p>',
+    '<div class="task-choice"><button class="task-button" id="eye-validation-continue">继续实验</button><button class="task-button secondary" id="eye-recalibrate">重新校准</button><button class="task-button secondary" id="eye-validation-skip">关闭眼动并继续</button></div>',
+    "eye-validation-panel"
+  );
+  $("#eye-validation-continue").onclick = () => {
+    try { if (typeof window.webgazer.showVideoPreview === "function") window.webgazer.showVideoPreview(false); } catch (_) {}
+    eyeCalibrationContext = null;
+    updateSessionMeta({ eye_tracking_status: "ready", eye_ready_at: new Date().toISOString() });
+    recordEvent("eye_tracking_ready", { validation_points_with_error: errors.length });
+    beginInstructions();
+  };
+  $("#eye-recalibrate").onclick = () => {
+    try { if (typeof window.webgazer.clearData === "function") window.webgazer.clearData(); } catch (_) {}
+    eyeCalibrationContext = { phase: "calibration", trial_number: "", started_perf: performance.now() };
+    recordEvent("eye_recalibration_requested");
+    runNinePointEyeCalibration();
+  };
+  $("#eye-validation-skip").onclick = () => {
+    eyeEnabled = false;
+    eyeCalibrationContext = null;
+    stopEyeTracking();
+    updateSessionMeta({ eye_tracking_status: "validation_skipped" });
+    recordEvent("eye_tracking_disabled_after_validation");
+    beginInstructions();
+  };
 }
 
 function beginInstructions() {
