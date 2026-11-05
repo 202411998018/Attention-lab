@@ -9,7 +9,7 @@ const EXPERIMENTS = {
     id: "posner",
     name: "Posner 空间线索实验",
     english: "POSNER SPATIAL CUEING",
-    description: "比较外周闪烁线索与中央方向箭头如何引导空间注意，并考察有效、无效和中性线索及线索—目标间隔的影响。",
+    description: "注视屏幕中心，看到目标后判断它出现在左侧还是右侧。",
     facts: ["外源性 / 内源性线索", "有效 / 无效 / 中性", "反应时与正确率"],
     duration: "约 6–8 分钟"
   },
@@ -17,7 +17,7 @@ const EXPERIMENTS = {
     id: "change",
     name: "面孔变化检测实验",
     english: "FACE FLICKER CHANGE DETECTION",
-    description: "通过 A—空屏—B—空屏的闪烁范式，检测注视方向、嘴角、眉毛和鼻子四类较细微的变化。",
+    description: "观察交替出现的面孔，判断是否变化，并指出变化部位。",
     facts: ["4 类面部特征变化", "无变化 Catch Trials", "变化检测与部位判断"],
     duration: "约 5–8 分钟"
   },
@@ -25,7 +25,7 @@ const EXPERIMENTS = {
     id: "search",
     name: "视觉搜索与特征整合实验",
     english: "VISUAL SEARCH / FEATURE INTEGRATION",
-    description: "比较单一特征搜索与颜色—形状结合搜索，操纵搜索集合大小和目标有无，检验搜索效率随项目数量的变化。",
+    description: "寻找指定目标，按提示判断目标是否存在。",
     facts: ["Feature Search", "Conjunction Search", "集合大小 8 / 16 / 24"],
     duration: "约 6–8 分钟"
   }
@@ -900,7 +900,7 @@ function eyeSetup() {
   panel(
     "是否启用摄像头眼动追踪？",
     '<p>启用后，浏览器会请求摄像头权限，并在本机实时估计注视位置。摄像头视频不会录制或上传；原始注视坐标保存在当前浏览器，不随 HW2 提交。你可以随时跳过眼动，继续行为实验。</p>' +
-    '<div class="eye-status">建议使用 HTTPS、正对屏幕、保持头部相对稳定，并确保面部光照充足。眼动估计仅用于探索性分析。</div>',
+    '<div class="eye-status">请正对屏幕，保持头部稳定、面部光照充足。</div>',
     '<div class="task-choice"><button class="task-button" id="eye-enable">同意并开始校准</button><button class="task-button secondary" id="eye-skip">不同意，跳过眼动</button></div>'
   );
   $("#eye-enable").onclick = () => {
@@ -1283,7 +1283,7 @@ async function runEyeValidation() {
     '<div class="eye-validation-metric"><span>有效样本比例</span><b>' + (summary.valid_sample_ratio * 100).toFixed(1) + '%</b></div>' +
     '<div class="eye-validation-metric"><span>估计采样频率</span><b>' + summary.samples_per_second.toFixed(1) + ' Hz</b></div>' +
     '</div>' + pointRows +
-    '<p class="eye-validation-note">以上是本次设备与环境下的探索性质量指标，不代表专业眼动仪精度，也不自动判定校准合格。建议先通过小规模 pilot 确定质量控制标准。</p>',
+    '<p class="eye-validation-note">如需改善效果，可重新校准。</p>',
     '<div class="task-choice"><button class="task-button" id="eye-validation-continue">继续实验</button><button class="task-button secondary" id="eye-recalibrate">重新校准</button><button class="task-button secondary" id="eye-validation-skip">关闭眼动并继续</button></div>',
     "eye-validation-panel"
   );
@@ -1525,7 +1525,7 @@ async function runNext() {
     if (phase === "practice") {
       panel(
         "练习完成",
-        '<p>你已经完成练习。接下来进入正式实验。正式试次的数据会与练习试次分开标记。</p>',
+        '<p>练习完成。准备好后，开始正式实验。</p>',
         '<button class="task-button" id="formal-start">开始正式实验</button>'
       );
       $("#formal-start").onclick = beginFormal;
@@ -2063,10 +2063,9 @@ function finishTask() {
     : "";
   panel(
     "实验完成",
-    '<p>感谢参与。以下为本次正式试次的描述性结果。所有练习与正式试次均已逐条保存在当前浏览器。</p>' +
+    '<p>感谢参与！这是你本次的实验结果。</p>' +
     '<div class="result-box">' +
     '<div class="result-line"><span>参与者编号</span><b>' + escapeHtml(participant) + '</b></div>' +
-    '<div class="result-line"><span>Session ID</span><b>' + escapeHtml(sessionId.slice(0, 12)) + '</b></div>' +
     '<div class="result-line"><span>正式试次数</span><b>' + formalRows.length + '</b></div>' +
     '<div class="result-line"><span>已作答试次</span><b>' + responded.length + '</b></div>' +
     '<div class="result-line"><span>正确率</span><b>' + accuracy.toFixed(1) + '%</b></div>' +
@@ -2076,7 +2075,7 @@ function finishTask() {
     '<div class="result-line"><span>本次眼动样本</span><b>' + sessionGaze.length + '</b></div>' +
     '</div>' +
     '<div class="hw2-upload-status" id="hw2-upload-status" role="status" aria-live="polite">正在准备提交至课程收数平台……</div>' +
-    '<p class="task-muted">完整试次记录将提交至课程 HW2 收数平台；眼动原始样本和完整事件日志仍保留在本机备份中。请勿清除浏览器数据，直到确认上传成功。</p>' + storageWarningHtml,
+    '<p class="task-muted">请等待数据提交完成后再关闭页面。</p>' + storageWarningHtml,
     '<div class="task-choice"><button class="task-button" id="download-session">下载本次试次 CSV</button>' +
     '<button class="task-button secondary" id="download-gaze">下载本次眼动 CSV</button>' +
     '<button class="task-button secondary" id="download-all">下载本机累计数据 CSV</button>' +

@@ -238,3 +238,27 @@
   max-width: 1160px;
   margin: 0 auto;
 }
+/* Shared warm, quiet visual system. Stimulus colors remain task-defined. */
+:root{--paper:#faf8f2;--ink:#263e35;--muted:#626e65;--line:#dce1d6;--blue:#476657;--sage:#b9cbb7;--clay:#476657;--cream:#ececdf;--sans:"DM Sans","Microsoft YaHei","PingFang SC",sans-serif;--serif:var(--sans)}
+body{background:radial-gradient(ellipse at 85% 12%,#e4ecdd 0,transparent 48%),var(--paper)}
+[hidden]{display:none!important}
+.site-header{background:rgba(250,248,242,.94)}
+.hero{min-height:590px;padding-top:64px;padding-bottom:48px}
+.hero h1{font-weight:650;line-height:1.22;letter-spacing:-.045em;font-size:clamp(44px,5.5vw,72px)}
+.hero-subtitle{font-size:21px}.hero-description{font-size:17px;line-height:1.8}
+.eyebrow,.main-nav,.header-cta{font-size:13px}.hero-art{isolation:isolate}
+.hero-art::before{content:"";position:absolute;inset:3%;border:1px solid #a4b99b;border-radius:50%;opacity:.3;animation:quiet-breathe 8s ease-in-out 2;pointer-events:none}
+@keyframes quiet-breathe{50%{transform:scale(1.06);opacity:.55}}
+.experiments{padding-top:48px;padding-bottom:80px}.section-heading h2{font-size:clamp(30px,4vw,46px)}.section-heading>p{font-size:16px}
+.experiment-card{border-radius:22px;border-color:var(--line);box-shadow:0 8px 24px #263e3506;transition:transform 200ms cubic-bezier(.16,1,.3,1),box-shadow 200ms cubic-bezier(.16,1,.3,1)}
+.visual-posner,.visual-change,.visual-search{background:#e5ecdf;color:#365445}
+.card-content{padding:26px}.card-content h3{font-size:23px;font-weight:650}.card-content p{font-size:16px;line-height:1.8}.card-meta{font-size:12px}.card-link{min-height:48px;font-size:16px;color:#365445}
+.button,.task-button{min-height:48px;font-size:17px}.button-dark{background:#365445}.experiment-modal{max-height:90dvh;overflow:auto;border:1px solid var(--line);border-radius:24px}.experiment-modal h2{font-size:32px}.experiment-modal>p:not(.eyebrow){font-size:19px}.modal-facts span{font-size:14px}
+.modal-backdrop.open .experiment-modal{animation:dialog-arrive 200ms cubic-bezier(.16,1,.3,1)}
+@keyframes dialog-arrive{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.task-overlay{background:#15251f}.task-stage{overflow-y:auto;min-height:0}.task-panel p,.eye-status,.eye-calibration-intro{font-size:20px;line-height:1.75}.task-muted{font-size:16px!important;letter-spacing:0}.task-top{font-size:13px}.task-top button{min-height:44px}
+.instruction-lead{font-size:23px!important}.instruction-step p,.instruction-step span,.instruction-key-card,.instruction-feature-item{font-size:18px!important;line-height:1.65}.instruction-notice strong,.instruction-notice span,.instruction-note strong,.instruction-note p{font-size:18px!important;line-height:1.7!important}.instruction-key-card kbd{font-size:25px}.instruction-feature-title,.instruction-response h3{font-size:20px}.instruction-panel .instruction-start{font-size:19px;box-shadow:none;background:#d9e5d2;color:#203a2c}.instruction-panel .instruction-start:hover{background:#e8f0e2;box-shadow:none}.result-line{font-size:17px;gap:20px;flex-wrap:wrap}.result-box{background:#20372c;border-color:#4a6352}.site-footer{grid-template-columns:1fr 1fr auto}.task-choice{gap:8px}
+@media(hover:hover){.experiment-card:hover{transform:translateY(-5px);box-shadow:0 16px 32px #263e3510}}
+.experiment-card:active{transform:scale(.99)}
+@media(max-width:620px){.hero{padding-top:38px}.hero h1{font-size:44px}.hero-art{height:270px}.section-heading>p{font-size:16px}.site-footer{grid-template-columns:1fr}.task-panel p{font-size:18px}.instruction-step p,.instruction-step span{font-size:18px!important}.experiment-modal{padding:32px 22px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
