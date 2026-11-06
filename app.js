@@ -142,7 +142,10 @@ function setCarouselCard(index, manual) {
 if (carouselCards.length) {
   carouselCards.forEach((card, index) => {
     card.addEventListener("click", (event) => {
-      if (event.target.closest("button")) return;
+      if (carouselTouchMoved || event.target.closest("button")) {
+        carouselTouchMoved = false;
+        return;
+      }
       setCarouselCard(index, true);
     });
     card.addEventListener("keydown", (event) => {
@@ -181,14 +184,20 @@ if (carouselCards.length) {
     }
   });
   let carouselTouchStart = null;
+  let carouselTouchMoved = false;
   carousel.addEventListener("touchstart", (event) => {
     carouselTouchStart = event.changedTouches[0].clientX;
+    carouselTouchMoved = false;
   }, { passive: true });
   carousel.addEventListener("touchend", (event) => {
     if (carouselTouchStart === null) return;
     const delta = event.changedTouches[0].clientX - carouselTouchStart;
     carouselTouchStart = null;
-    if (Math.abs(delta) > 42) setCarouselCard(activeCarouselIndex + (delta < 0 ? 1 : -1), true);
+    if (Math.abs(delta) > 42) {
+      carouselTouchMoved = true;
+      setCarouselCard(activeCarouselIndex + (delta < 0 ? 1 : -1), true);
+      window.setTimeout(() => { carouselTouchMoved = false; }, 450);
+    }
   }, { passive: true });
   setCarouselCard(activeCarouselIndex, false);
   startCarouselAutoplay();
