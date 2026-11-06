@@ -417,3 +417,70 @@ body{background:radial-gradient(ellipse at 85% 12%,#e4ecdd 0,transparent 48%),va
 
 .task-stage:has(.result-panel){display:block;overscroll-behavior:contain}
 .task-panel.result-panel{margin:18px auto}
+
+
+/* Experiment chooser: specific stimulus previews, concise titles only. */
+.art-card-info{
+  opacity:1!important;
+  visibility:visible!important;
+  transform:none!important;
+  pointer-events:none!important;
+  padding:15px 18px 17px!important;
+  background:rgba(247,246,239,.94)!important;
+  color:#2d4035!important;
+  backdrop-filter:blur(10px);
+}
+.art-card-info h3{
+  margin:0!important;
+  color:#2d4035!important;
+  font-size:clamp(15px,1.7vw,23px)!important;
+  line-height:1.25!important;
+  letter-spacing:-.025em!important;
+}
+.art-card.is-left .art-card-info h3,
+.art-card.is-right .art-card-info h3{font-size:clamp(12px,1.2vw,16px)!important}
+.art-card.is-center .art-card-info{padding:18px 22px 20px!important}
+.art-card.is-center .art-card-info h3{font-size:clamp(22px,2.5vw,30px)!important}
+.face-preview-pair{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;gap:2%;
+  padding:28px 12px 74px;
+  background:#e8e0d2;
+}
+.face-preview-pair img{
+  display:block;width:43%;height:86%;object-fit:contain;
+  border-radius:12px;background:#f7f4ee;
+  box-shadow:0 12px 24px rgba(55,59,49,.12);
+}
+.face-preview-arrow{
+  flex:0 0 8%;text-align:center;
+  color:#7b8d80;font-size:clamp(18px,2vw,28px);
+}
+.hero .hero-description{max-width:360px}
+.hero .hero-actions{margin-top:28px}
+.hero .hero-actions button{font:500 13px var(--sans)}
+.result-search-chart{
+  margin:10px 0 22px;padding:12px 14px 6px;
+  border:1px solid #3d5144;border-radius:12px;background:#1a3026;
+}
+.result-search-chart svg{display:block;width:100%;height:auto;overflow:visible}
+.result-search-legend{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin:2px 0 6px}
+.result-search-legend-item{display:inline-flex;align-items:center;gap:8px;color:#d6e0d3;font-size:11px}
+.result-search-legend-item i{display:inline-block;width:9px;height:9px;border-radius:50%}
+@media(max-width:850px){
+  .art-card-info h3{font-size:clamp(14px,2vw,21px)!important}
+  .art-card.is-left .art-card-info h3,.art-card.is-right .art-card-info h3{font-size:clamp(11px,1.5vw,15px)!important}
+}
+@media(max-width:620px){
+  .art-card-info{padding:11px 12px 13px!important}
+  .art-card-info h3{font-size:15px!important}
+  .art-card.is-left .art-card-info h3,.art-card.is-right .art-card-info h3{font-size:11px!important}
+  .art-card.is-center .art-card-info{padding:13px 14px 15px!important}
+  .art-card.is-center .art-card-info h3{font-size:19px!important}
+  .face-preview-pair{padding:20px 5px 58px;gap:1%}
+  .face-preview-pair img{width:45%;height:80%;border-radius:8px}
+  .face-preview-arrow{font-size:15px}
+  .result-search-chart{padding:8px 5px 4px;margin:8px -4px 18px}
+  .result-search-legend{gap:12px}
+  .result-search-legend-item{font-size:10px}
+}
