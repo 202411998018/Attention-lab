@@ -11,7 +11,9 @@ const EXPERIMENTS = {
     english: "POSNER SPATIAL CUEING",
     description: "注视屏幕中心，看到目标后判断它出现在左侧还是右侧。",
     facts: ["外源性 / 内源性线索", "有效 / 无效 / 中性", "反应时与正确率"],
-    duration: "约 6–8 分钟"
+    duration: "约 6–8 分钟",
+    resultTitle: "空间线索实验结果",
+    resultLead: "本页呈现外周线索与中央箭头条件下的反应时和正确率。"
   },
   change: {
     id: "change",
@@ -19,7 +21,9 @@ const EXPERIMENTS = {
     english: "FACE FLICKER CHANGE DETECTION",
     description: "观察交替出现的面孔，判断是否变化，并指出变化部位。",
     facts: ["4 类面部特征变化", "无变化 Catch Trials", "变化检测与部位判断"],
-    duration: "约 5–8 分钟"
+    duration: "约 5–8 分钟",
+    resultTitle: "面孔变化检测结果",
+    resultLead: "本页呈现面孔变化检测的命中、漏报、虚报与正确拒绝情况。"
   },
   search: {
     id: "search",
@@ -27,7 +31,9 @@ const EXPERIMENTS = {
     english: "VISUAL SEARCH / FEATURE INTEGRATION",
     description: "寻找指定目标，按提示判断目标是否存在。",
     facts: ["Feature Search", "Conjunction Search", "集合大小 8 / 16 / 24"],
-    duration: "约 6–8 分钟"
+    duration: "约 6–8 分钟",
+    resultTitle: "视觉搜索实验结果",
+    resultLead: "本页呈现特征搜索与结合搜索在不同集合大小下的表现。"
   }
 };
 
@@ -252,6 +258,16 @@ document.querySelectorAll(".main-nav a").forEach((link) => {
     $(".menu-toggle").setAttribute("aria-expanded", "false");
   });
 });
+const startSelectedButton = $("#start-selected-experiment");
+if (startSelectedButton) {
+  startSelectedButton.addEventListener("click", () => {
+    const activeCard = carouselCards[activeCarouselIndex];
+    const experimentId = activeCard && activeCard.dataset.carouselCard;
+    if (!experimentId) return;
+    stopCarouselAutoplay();
+    showSetup(experimentId);
+  });
+}
 $("#start-experiment").onclick = () => {
   closeModal();
   showSetup(selected.id);
@@ -2167,70 +2183,121 @@ function resultConditionRow(label, rows, maxRt) {
     '</div>';
 }
 
+function buildPosnerResultMarkup(rows) {
+  const groups = [];
+  ["外周线索", "中央箭头"].forEach((cueType) => {
+    ["有效", "无效", "中性"].forEach((validity) => {
+      groups.push({
+        label: cueType + " · " + validity,
+        rows: rows.filter((row) => row.cue_type === cueType && row.cue_validity === validity)
+      });
+    });
+  });
+  const present = groups.filter((group) => group.rows.length);
+  if (!present.length) {
+    return '<section class="result-breakdown"><h3>空间线索条件对比</h3><p>当前没有足够的正式试次生成条件对比。</p></section>';
+  }
+  const maxRt = Math.max(1, ...present.map((group) => correctResultMedian(group.rows) || 0));
+  return '<section class="result-breakdown result-breakdown-posner"><div class="result-section-heading"><div><span>POSNER · SPATIAL CUEING</span><h3>不同线索条件下的反应时与正确率</h3></div>' +
+    '<p>条形表示正确试次的中位反应时；右侧为条件正确率。</p></div><div class="result-condition-list">' +
+    present.map((group) => resultConditionRow(group.label, group.rows, maxRt)).join("") +
+    '</div></section>';
+}
+
+function buildVisualSearchResultMarkup(rows) {
+  const searchTypes = ["特征搜索", "结合搜索"];
+  const setSizes = [8, 16, 24];
+  const groups = searchTypes.flatMap((searchType) => setSizes.map((setSize) => ({
+    searchType,
+    setSize,
+    label: searchType + " · " + setSize + " 项",
+    rows: rows.filter((row) => row.search_type === searchType && Number(row.set_size) === setSize)
+  })));
+  const values = groups.map((group) => correctResultMedian(group.rows)).filter((value) => value !== null);
+  if (!values.length) {
+    return '<section class="result-breakdown"><h3>搜索条件对比</h3><p>当前没有足够的正式试次生成反应时图。</p></section>';
+  }
+
+  const maxRt = Math.max(600, Math.ceil(Math.max(...values) / 100) * 100);
+  const xPositions = [160, 365, 570];
+  const top = 34;
+  const bottom = 218;
+  const yFor = (value) => bottom - (value / maxRt) * (bottom - top);
+  const ticks = [0, Math.round(maxRt / 2), maxRt];
+  const grid = ticks.map((tick) => {
+    const y = yFor(tick);
+    return '<line x1="92" y1="' + y + '" x2="625" y2="' + y + '" stroke="#42584a" stroke-width="1"/>' +
+      '<text x="78" y="' + (y + 4) + '" text-anchor="end" fill="#aebdaf" font-size="11">' + tick + '</text>';
+  }).join("");
+  const xLabels = setSizes.map((size, index) =>
+    '<text x="' + xPositions[index] + '" y="245" text-anchor="middle" fill="#dbe4d8" font-size="12">' + size + ' 项</text>'
+  ).join("");
+  const colors = { "特征搜索": "#c99b79", "结合搜索": "#b8cbb1" };
+  const series = searchTypes.map((searchType) => {
+    const points = setSizes.map((setSize, index) => {
+      const group = groups.find((item) => item.searchType === searchType && item.setSize === setSize);
+      const rt = group ? correctResultMedian(group.rows) : null;
+      return rt === null ? null : { x: xPositions[index], y: yFor(rt), rt };
+    });
+    const validPoints = points.filter(Boolean);
+    const polyline = validPoints.length > 1
+      ? '<polyline points="' + validPoints.map((point) => point.x + ',' + point.y).join(" ") +
+        '" fill="none" stroke="' + colors[searchType] + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      : "";
+    const circles = validPoints.map((point) =>
+      '<circle cx="' + point.x + '" cy="' + point.y + '" r="5" fill="' + colors[searchType] + '"/>' +
+      '<text x="' + point.x + '" y="' + (point.y - 11) + '" text-anchor="middle" fill="#f0f1e8" font-size="10">' +
+      Math.round(point.rt) + '</text>'
+    ).join("");
+    return polyline + circles;
+  }).join("");
+  const legend = searchTypes.map((searchType) =>
+    '<span class="result-search-legend-item"><i style="background:' + colors[searchType] + '"></i>' + searchType + '</span>'
+  ).join("");
+  const chart = '<div class="result-search-chart"><div class="result-search-legend">' + legend + '</div>' +
+    '<svg viewBox="0 0 680 270" role="img" aria-label="不同集合大小下特征搜索与结合搜索的正确试次中位反应时折线图">' +
+    grid + '<text x="18" y="22" fill="#aebdaf" font-size="11">反应时（ms）</text>' + series + xLabels +
+    '<text x="358" y="266" text-anchor="middle" fill="#aebdaf" font-size="11">刺激集合大小</text></svg></div>';
+  const maxConditionRt = Math.max(1, ...values);
+  const conditionRows = groups.filter((group) => group.rows.length)
+    .map((group) => resultConditionRow(group.label, group.rows, maxConditionRt)).join("");
+  return '<section class="result-breakdown result-breakdown-search"><div class="result-section-heading"><div><span>VISUAL SEARCH · FEATURE INTEGRATION</span><h3>搜索类型与集合大小的影响</h3></div>' +
+    '<p>折线表示正确试次的中位反应时；下方同时列出各条件正确率。</p></div>' +
+    chart + '<div class="result-condition-list">' + conditionRows + '</div></section>';
+}
+
+function buildChangeDetectionResultMarkup(rows) {
+  const outcomes = [
+    { key: "hit", label: "命中", note: "发现真实变化" },
+    { key: "miss", label: "漏报", note: "未发现真实变化" },
+    { key: "false_alarm", label: "虚报", note: "无变化却报告变化" },
+    { key: "correct_rejection", label: "正确拒绝", note: "正确判断无变化" },
+    { key: "timeout", label: "超时", note: "未在时限内作答" }
+  ];
+  const total = rows.length || 1;
+  const outcomeCards = outcomes.map((item) => {
+    const count = rows.filter((row) => row.outcome === item.key).length;
+    const percent = count / total * 100;
+    return '<article class="result-outcome-card"><span>' + item.label + '</span><strong>' + count +
+      '</strong><small>' + percent.toFixed(1) + '% · ' + item.note + '</small><div class="result-meter"><span style="width:' +
+      Math.round(percent) + '%"></span></div></article>';
+  }).join("");
+  const localized = rows.filter((row) => row.change_present === true && row.outcome === "hit" &&
+    typeof row.feature_choice_correct === "boolean");
+  const localizedCorrect = localized.filter((row) => row.feature_choice_correct === true).length;
+  const localizationText = localized.length
+    ? '在成功检测到变化的 ' + localized.length + ' 次试次中，变化部位识别正确率为 ' +
+      (localizedCorrect / localized.length * 100).toFixed(1) + '%。'
+    : '本次没有可用于计算变化部位识别率的成功检测试次。';
+  return '<section class="result-breakdown result-breakdown-change"><div class="result-section-heading"><div><span>FACE CHANGE DETECTION</span><h3>变化检测结果分布</h3></div>' +
+    '<p>分别统计有变化与无变化试次的判断结果；超时单独列出。</p></div><div class="result-outcome-grid">' + outcomeCards +
+    '</div><p class="result-breakdown-note">' + localizationText + '</p></section>';
+}
+
 function buildResultBreakdownMarkup(rows) {
-  if (selected.id === "posner") {
-    const groups = [];
-    ["外周线索", "中央箭头"].forEach((cueType) => {
-      ["有效", "无效", "中性"].forEach((validity) => {
-        groups.push({
-          label: cueType + " · " + validity,
-          rows: rows.filter((row) => row.cue_type === cueType && row.cue_validity === validity)
-        });
-      });
-    });
-    const present = groups.filter((group) => group.rows.length);
-    const maxRt = Math.max(1, ...present.map((group) => correctResultMedian(group.rows) || 0));
-    return '<section class="result-breakdown"><div class="result-section-heading"><div><span>CONDITION BREAKDOWN</span><h3>不同线索条件下的表现</h3></div>' +
-      '<p>条形表示正确试次的中位反应时；右侧为条件正确率。</p></div><div class="result-condition-list">' +
-      present.map((group) => resultConditionRow(group.label, group.rows, maxRt)).join("") +
-      '</div></section>';
-  }
-
-  if (selected.id === "search") {
-    const groups = [];
-    ["特征搜索", "结合搜索"].forEach((searchType) => {
-      [8, 16, 24].forEach((setSize) => {
-        groups.push({
-          label: searchType + " · " + setSize + " 项",
-          rows: rows.filter((row) => row.search_type === searchType && Number(row.set_size) === setSize)
-        });
-      });
-    });
-    const present = groups.filter((group) => group.rows.length);
-    const maxRt = Math.max(1, ...present.map((group) => correctResultMedian(group.rows) || 0));
-    return '<section class="result-breakdown"><div class="result-section-heading"><div><span>SEARCH CONDITIONS</span><h3>不同搜索条件下的表现</h3></div>' +
-      '<p>比较不同搜索类型与集合大小下的正确反应时和正确率。</p></div><div class="result-condition-list">' +
-      present.map((group) => resultConditionRow(group.label, group.rows, maxRt)).join("") +
-      '</div></section>';
-  }
-
-  if (selected.id === "change") {
-    const outcomes = [
-      { key: "hit", label: "命中", note: "发现真实变化" },
-      { key: "miss", label: "漏报", note: "未发现真实变化" },
-      { key: "false_alarm", label: "虚报", note: "无变化却报告变化" },
-      { key: "correct_rejection", label: "正确拒绝", note: "正确判断无变化" },
-      { key: "timeout", label: "超时", note: "未在时限内作答" }
-    ];
-    const total = rows.length || 1;
-    const outcomeCards = outcomes.map((item) => {
-      const count = rows.filter((row) => row.outcome === item.key).length;
-      const percent = count / total * 100;
-      return '<article class="result-outcome-card"><span>' + item.label + '</span><strong>' + count +
-        '</strong><small>' + percent.toFixed(1) + '% · ' + item.note + '</small><div class="result-meter"><span style="width:' +
-        Math.round(percent) + '%"></span></div></article>';
-    }).join("");
-    const localized = rows.filter((row) => row.change_present === true && row.outcome === "hit" &&
-      typeof row.feature_choice_correct === "boolean");
-    const localizedCorrect = localized.filter((row) => row.feature_choice_correct === true).length;
-    const localizationText = localized.length
-      ? '在成功检测到变化的 ' + localized.length + ' 次试次中，变化部位识别正确率为 ' +
-        (localizedCorrect / localized.length * 100).toFixed(1) + '%。'
-      : '本次没有可用于计算变化部位识别率的成功检测试次。';
-    return '<section class="result-breakdown"><div class="result-section-heading"><div><span>DETECTION OUTCOMES</span><h3>变化检测结果分布</h3></div>' +
-      '<p>各类别数量及其占正式试次的比例。</p></div><div class="result-outcome-grid">' + outcomeCards +
-      '</div><p class="result-breakdown-note">' + localizationText + '</p></section>';
-  }
+  if (selected.id === "posner") return buildPosnerResultMarkup(rows);
+  if (selected.id === "search") return buildVisualSearchResultMarkup(rows);
+  if (selected.id === "change") return buildChangeDetectionResultMarkup(rows);
   return "";
 }
 
@@ -2270,7 +2337,7 @@ function finishTask() {
     : "";
   const resultMetrics =
     '<div class="result-metrics">' +
-      '<article class="result-metric"><div class="result-metric-top"><span>任务正确率</span><span class="result-metric-index">01</span></div>' +
+      '<article class="result-metric"><div class="result-metric-top"><span>本实验正确率</span><span class="result-metric-index">01</span></div>' +
         '<strong>' + accuracyText + '</strong><div class="result-meter"><span style="width:' + accuracyWidth + '%"></span></div>' +
         '<small>' + (scored.length ? correctCount + ' / ' + scored.length + ' 个可计分试次正确' : '暂无可计分试次') + '</small></article>' +
       '<article class="result-metric"><div class="result-metric-top"><span>正确试次中位反应时</span><span class="result-metric-index">02</span></div>' +
@@ -2287,8 +2354,8 @@ function finishTask() {
   const breakdownMarkup = buildResultBreakdownMarkup(formalRows);
 
   panel(
-    "本次探索已完成",
-    '<div class="result-intro"><div class="result-complete-mark">✓</div><div><span>SESSION COMPLETE</span><p>感谢参与。以下是本次任务的描述性结果摘要。</p></div></div>' +
+    selected.resultTitle || "实验结果",
+    '<div class="result-intro"><div class="result-complete-mark">✓</div><div><span>SESSION COMPLETE</span><p>' + escapeHtml(selected.resultLead || "以下是本次实验的描述性结果摘要。") + '</p></div></div>' +
     resultMetrics +
     resultMeta +
     breakdownMarkup +
@@ -2301,7 +2368,7 @@ function finishTask() {
       '<button class="task-button secondary" id="download-all">导出本机累计数据</button>' +
       '<button class="task-button secondary" id="hw2-upload-retry">重试数据提交</button>' +
       '<button class="task-button result-return" id="finish-close">返回首页</button></div>',
-    "result-panel"
+    "result-panel result-panel-" + selected.id
   );
   $("#download-session").onclick = () => downloadCSV(sessionRows, selected.id + "-" + participant + "-trials.csv");
   $("#download-gaze").onclick = () => {
@@ -2399,6 +2466,7 @@ function exitTask() {
   taskOverlay.setAttribute("aria-hidden", "true");
   $("#task-progress").style.width = "0%";
   refreshDataArchive();
+  startCarouselAutoplay();
 }
 
 function handlePageHide() {
