@@ -25,73 +25,56 @@
         <p class="eyebrow"><span class="eyebrow-line"></span> 给注意力一点探索的时间</p>
         <h1>专注此刻，<br>发现<em>注意力。</em></h1>
         <p class="hero-subtitle">注意力，如何改变我们看到的世界？</p>
-        <p class="hero-description">选择一张实验卡片，查看任务内容与参与方式。</p>
-        <div class="hero-actions"><a class="button button-dark" href="#experiments">探索实验 <span>↗</span></a></div>
+        <p class="hero-description">选择一项实验，开始注意力探索。</p>
+        <div class="hero-actions"><button class="button button-dark" id="start-selected-experiment" type="button">开始所选实验 <span>↗</span></button></div>
 
       </div>
       <div class="hero-art" role="region" aria-roledescription="carousel" aria-label="选择一个注意力实验">
         <article class="art-card art-card-left is-left" data-carousel-card="posner" role="button" tabindex="0" aria-pressed="false" aria-label="选择空间线索实验">
-          <span class="art-index">01 / ORIENT</span>
-          <svg viewBox="0 0 420 330" role="img" aria-label="空间线索示意图">
-            <rect width="420" height="330" fill="#dce8e3"/>
-            <path d="M0 230 Q90 170 170 225 T420 205 V330 H0Z" fill="#9db9ad"/>
-            <path d="M0 0 H420 V150 Q310 120 220 155 T0 130Z" fill="#e9eee5"/>
-            <path d="M40 70 H380" stroke="#879e95" stroke-dasharray="3 9" stroke-width="2"/>
-            <rect x="40" y="125" width="90" height="90" rx="10" fill="#f8f7f1" stroke="#78968b" stroke-width="2"/>
-            <rect x="290" y="125" width="90" height="90" rx="10" fill="#f8f7f1" stroke="#78968b" stroke-width="2"/>
-            <path d="M210 150 L210 205 M183 178 H237" stroke="#344c48" stroke-width="4" stroke-linecap="round"/>
-            <path d="M90 112 Q170 42 330 112" fill="none" stroke="#b67d56" stroke-width="3" stroke-dasharray="6 8"/>
-            <circle cx="330" cy="170" r="12" fill="#c47e57"/>
-            <circle cx="85" cy="55" r="5" fill="#a56d89"/>
+          <svg viewBox="0 0 420 330" role="img" aria-label="中央箭头、左右目标框与目标圆点">
+            <rect width="420" height="330" fill="#e5ece5"/>
+            <path d="M0 255 Q110 218 210 252 T420 245 V330 H0Z" fill="#c8d8cf"/>
+            <rect x="38" y="122" width="100" height="112" rx="15" fill="#f8f7f1" stroke="#819b8e" stroke-width="3"/>
+            <rect x="282" y="122" width="100" height="112" rx="15" fill="#f8f7f1" stroke="#819b8e" stroke-width="3"/>
+            <path d="M178 78 H242 M226 61 L244 78 L226 95" fill="none" stroke="#405e50" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M210 158 V202 M188 180 H232" stroke="#6d8176" stroke-width="5" stroke-linecap="round"/>
+            <circle cx="332" cy="178" r="15" fill="#bd805e"/>
+            <circle cx="332" cy="178" r="28" fill="none" stroke="#bd805e" stroke-width="2" opacity=".45"/>
+            <path d="M88 104 V88 M332 104 V88" stroke="#9bb0a4" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <div class="art-card-info">
-            <span class="art-card-kicker">SPATIAL ORIENTING · 6–8 MIN</span>
-            <h3>空间线索实验</h3>
-            <p>观察线索如何引导注意，比较外源与内源条件下的反应。</p>
-            <button class="card-open" type="button" data-open="posner">查看实验 <span>↗</span></button>
-          </div>
+          <div class="art-card-info"><h3>空间线索实验</h3></div>
         </article>
 
         <article class="art-card art-card-center is-center is-active" data-carousel-card="change" role="button" tabindex="0" aria-pressed="true" aria-label="选择面孔变化检测实验">
-          <span class="art-index">02 / NOTICE</span>
-          <svg viewBox="0 0 420 420" role="img" aria-label="变化盲示意场景">
-            <rect width="420" height="420" fill="#d9d4c8"/>
-            <rect y="270" width="420" height="150" fill="#9caa9e"/>
-            <path d="M0 265 L75 150 L140 245 L225 100 L330 255 L420 170 V300 H0Z" fill="#879d99"/>
-            <path d="M0 300 Q90 270 170 315 T420 290 V420 H0Z" fill="#b7b09c"/>
-            <path d="M75 150 L105 205 L140 245 L115 250 L75 205 L45 250Z" fill="#f1ece0"/>
-            <circle cx="310" cy="292" r="22" fill="#b47d5d"/>
-            <path d="M310 314V365 M310 330L285 350 M310 330L335 350" stroke="#4d5b57" stroke-width="8" stroke-linecap="round"/>
-            <path d="M60 330 Q120 290 180 330" stroke="#e7e0d2" stroke-width="5" fill="none"/>
-            <circle cx="115" cy="320" r="5" fill="#d08a60"/>
-          </svg>
-          <div class="art-card-info">
-            <span class="art-card-kicker">CHANGE DETECTION · 5–8 MIN</span>
-            <h3>面孔变化检测实验</h3>
-            <p>观察交替出现的面孔，判断变化是否发生，以及变化部位。</p>
-            <button class="card-open" type="button" data-open="change">查看实验 <span>↗</span></button>
+          <div class="face-preview-pair" role="img" aria-label="两张注视方向不同的面孔刺激">
+            <img src="assets/face-change-stimuli/01_gaze_left.svg" alt="面孔刺激：注视左侧">
+            <span class="face-preview-arrow" aria-hidden="true">↔</span>
+            <img src="assets/face-change-stimuli/02_gaze_right.svg" alt="面孔刺激：注视右侧">
           </div>
+          <div class="art-card-info"><h3>面孔变化检测实验</h3></div>
         </article>
 
         <article class="art-card art-card-right is-right" data-carousel-card="search" role="button" tabindex="0" aria-pressed="false" aria-label="选择视觉搜索实验">
-          <span class="art-index">03 / SEARCH</span>
-          <svg viewBox="0 0 420 330" role="img" aria-label="视觉搜索示意图">
-            <rect width="420" height="330" fill="#e8e0d1"/>
-            <g fill="#435b67">
-              <path d="M70 85V125 M50 105H90"/><path d="M145 70V110 M125 90H165"/><path d="M230 85V125 M210 105H250"/>
-              <path d="M315 65V105 M295 85H335"/><path d="M90 180V220 M70 200H110"/><path d="M185 175V215 M165 195H205"/>
-              <path d="M275 180V220 M255 200H295"/><path d="M355 180V220 M335 200H375"/>
+          <svg viewBox="0 0 420 330" role="img" aria-label="随机分布的红色和绿色字母搜索阵列">
+            <rect width="420" height="330" fill="#e9e4d8"/>
+            <g font-family="Arial, sans-serif" font-size="39" font-weight="700" text-anchor="middle">
+              <text x="62" y="78" fill="#82998d">T</text>
+              <text x="142" y="63" fill="#bd805e">L</text>
+              <text x="246" y="82" fill="#82998d">T</text>
+              <text x="348" y="72" fill="#bd805e">L</text>
+              <text x="92" y="170" fill="#bd805e">L</text>
+              <text x="190" y="158" fill="#82998d">T</text>
+              <text x="304" y="177" fill="#82998d">T</text>
+              <text x="374" y="158" fill="#bd805e">L</text>
+              <text x="54" y="267" fill="#82998d">T</text>
+              <text x="153" y="250" fill="#82998d">T</text>
+              <text x="260" y="270" fill="#bd805e">L</text>
+              <text x="355" y="258" fill="#82998d">T</text>
+              <text x="242" y="215" fill="#bd805e">T</text>
             </g>
-            <g stroke="#c17e55" stroke-width="8" stroke-linecap="round"><path d="M145 245V285 M145 245L174 260"/></g>
-            <g stroke="#8da59b" stroke-width="8" stroke-linecap="round"><path d="M230 245V285 M230 245L259 260"/></g>
-            <circle cx="145" cy="265" r="35" fill="none" stroke="#c17e55" stroke-width="2" opacity=".5"/>
+            <circle cx="242" cy="202" r="27" fill="none" stroke="#bd805e" stroke-width="2.5" opacity=".8"/>
           </svg>
-          <div class="art-card-info">
-            <span class="art-card-kicker">VISUAL SEARCH · 6–8 MIN</span>
-            <h3>视觉搜索与特征整合</h3>
-            <p>在不同数量的刺激中寻找红色 T，体验不同搜索条件。</p>
-            <button class="card-open" type="button" data-open="search">查看实验 <span>↗</span></button>
-          </div>
+          <div class="art-card-info"><h3>视觉搜索实验</h3></div>
         </article>
 
         <div class="carousel-controls" aria-label="实验卡片切换控制">
@@ -104,7 +87,6 @@
           <span class="carousel-counter" id="carousel-counter" aria-live="polite">02 / 03</span>
           <button class="carousel-arrow" type="button" data-carousel-next aria-label="下一个实验">→</button>
         </div>
-        <p class="carousel-hint">点击卡片切换 · 悬停暂停自动播放</p>
       </div>
     </section>
 
