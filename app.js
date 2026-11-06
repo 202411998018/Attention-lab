@@ -109,7 +109,7 @@ function startCarouselAutoplay() {
   if (carouselHovered || carousel.contains(document.activeElement)) return;
   if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (carouselTimer) window.clearInterval(carouselTimer);
-  carouselTimer = window.setInterval(() => setCarouselCard(activeCarouselIndex + 1, false), 5200);
+  carouselTimer = window.setInterval(() => setCarouselCard(activeCarouselIndex - 1, false), 5200);
 }
 
 function setCarouselCard(index, manual) {
