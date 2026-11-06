@@ -8,7 +8,7 @@
   <title>Attention Lab — 看见注意力，理解认知</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,11 +26,11 @@
         <h1>专注此刻，<br>发现<em>注意力。</em></h1>
         <p class="hero-subtitle">注意力，如何改变我们看到的世界？</p>
         <p class="hero-description">选择一项实验，开始注意力探索。</p>
-        <div class="hero-actions"><button class="button button-dark" id="start-selected-experiment" type="button">开始所选实验 <span>↗</span></button></div>
+        
 
       </div>
       <div class="hero-art" role="region" aria-roledescription="carousel" aria-label="选择一个注意力实验">
-        <article class="art-card art-card-left is-left" data-carousel-card="posner" role="button" tabindex="0" aria-pressed="false" aria-label="选择空间线索实验">
+        <article class="art-card art-card-left is-left" data-carousel-card="posner" role="group" tabindex="0" aria-current="false" aria-label="空间线索实验卡片">
           <svg viewBox="0 0 420 330" role="img" aria-label="中央箭头、左右目标框与目标圆点">
             <rect width="420" height="330" fill="#e5ece5"/>
             <path d="M0 255 Q110 218 210 252 T420 245 V330 H0Z" fill="#c8d8cf"/>
@@ -42,19 +42,19 @@
             <circle cx="332" cy="178" r="28" fill="none" stroke="#bd805e" stroke-width="2" opacity=".45"/>
             <path d="M88 104 V88 M332 104 V88" stroke="#9bb0a4" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <div class="art-card-info"><h3>空间线索实验</h3></div>
+          <div class="art-card-info"><h3>空间线索实验</h3><button class="card-enter" type="button" data-enter-experiment="posner">进入实验 <span aria-hidden="true">↗</span></button></div>
         </article>
 
-        <article class="art-card art-card-center is-center is-active" data-carousel-card="change" role="button" tabindex="0" aria-pressed="true" aria-label="选择面孔变化检测实验">
+        <article class="art-card art-card-center is-center is-active" data-carousel-card="change" role="group" tabindex="0" aria-current="true" aria-label="面孔变化检测实验卡片">
           <div class="face-preview-pair" role="img" aria-label="两张注视方向不同的面孔刺激">
             <img src="assets/face-change-stimuli/01_gaze_left.svg" alt="面孔刺激：注视左侧">
             <span class="face-preview-arrow" aria-hidden="true">↔</span>
             <img src="assets/face-change-stimuli/02_gaze_right.svg" alt="面孔刺激：注视右侧">
           </div>
-          <div class="art-card-info"><h3>面孔变化检测实验</h3></div>
+          <div class="art-card-info"><h3>面孔变化检测实验</h3><button class="card-enter" type="button" data-enter-experiment="change">进入实验 <span aria-hidden="true">↗</span></button></div>
         </article>
 
-        <article class="art-card art-card-right is-right" data-carousel-card="search" role="button" tabindex="0" aria-pressed="false" aria-label="选择视觉搜索实验">
+        <article class="art-card art-card-right is-right" data-carousel-card="search" role="group" tabindex="0" aria-current="false" aria-label="视觉搜索实验卡片">
           <svg viewBox="0 0 420 330" role="img" aria-label="随机分布的红色和绿色字母搜索阵列">
             <rect width="420" height="330" fill="#e9e4d8"/>
             <g font-family="Arial, sans-serif" font-size="39" font-weight="700" text-anchor="middle">
@@ -74,7 +74,7 @@
             </g>
             <circle cx="242" cy="202" r="27" fill="none" stroke="#bd805e" stroke-width="2.5" opacity=".8"/>
           </svg>
-          <div class="art-card-info"><h3>视觉搜索实验</h3></div>
+          <div class="art-card-info"><h3>视觉搜索实验</h3><button class="card-enter" type="button" data-enter-experiment="search">进入实验 <span aria-hidden="true">↗</span></button></div>
         </article>
 
         <div class="carousel-controls" aria-label="实验卡片切换控制">
@@ -127,15 +127,6 @@
   </main>
 
   <footer class="site-footer"><a class="brand" href="#home">ATTENTION LAB</a><p>看见注意力，理解认知。</p><span class="footer-copy">© 2026 ATTENTION LAB</span></footer>
-
-  <div class="modal-backdrop" id="experiment-modal" aria-hidden="true">
-    <section class="experiment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <button class="modal-close" aria-label="关闭">×</button>
-      <p class="eyebrow" id="modal-kicker">EXPERIMENT OVERVIEW</p><h2 id="modal-title">实验标题</h2><p id="modal-description"></p>
-      <div class="modal-facts" id="modal-facts"></div>
-      <div class="modal-actions"><button class="button button-dark" id="start-experiment">开始体验 <span>↗</span></button><button class="button button-light" id="close-modal">稍后再试</button></div>
-    </section>
-  </div>
 
   <div class="task-overlay" id="task-overlay" aria-hidden="true">
     <div class="task-top"><span class="task-brand">ATTENTION LAB / <b id="task-name">EXPERIMENT</b></span><button id="exit-task" aria-label="退出实验">退出 ×</button></div>
