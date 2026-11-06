@@ -89,6 +89,112 @@ let sessionEventIndex = 0;
 let gazeFallbackPersistedIndex = 0;
 let gazeChunkIndex = 0;
 
+const carousel = document.querySelector(".hero-art");
+const carouselCards = carousel ? Array.from(carousel.querySelectorAll("[data-carousel-card]")) : [];
+const carouselDots = carousel ? Array.from(carousel.querySelectorAll("[data-carousel-dot]")) : [];
+let activeCarouselIndex = Math.max(0, carouselCards.findIndex((card) => card.classList.contains("is-active")));
+let carouselTimer = null;
+let carouselResumeTimer = null;
+let carouselHovered = false;
+
+function stopCarouselAutoplay() {
+  if (carouselTimer) window.clearInterval(carouselTimer);
+  if (carouselResumeTimer) window.clearTimeout(carouselResumeTimer);
+  carouselTimer = null;
+  carouselResumeTimer = null;
+}
+
+function startCarouselAutoplay() {
+  if (!carousel || carouselCards.length < 2) return;
+  if (carouselHovered || carousel.contains(document.activeElement)) return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (carouselTimer) window.clearInterval(carouselTimer);
+  carouselTimer = window.setInterval(() => setCarouselCard(activeCarouselIndex + 1, false), 5200);
+}
+
+function setCarouselCard(index, manual) {
+  if (!carouselCards.length) return;
+  activeCarouselIndex = (index + carouselCards.length) % carouselCards.length;
+  carouselCards.forEach((card, cardIndex) => {
+    const relative = (cardIndex - activeCarouselIndex + carouselCards.length) % carouselCards.length;
+    card.classList.remove("is-left", "is-center", "is-right", "is-active");
+    if (relative === 0) {
+      card.classList.add("is-center", "is-active");
+    } else if (relative === 1) {
+      card.classList.add("is-right");
+    } else {
+      card.classList.add("is-left");
+    }
+    card.setAttribute("aria-pressed", String(relative === 0));
+    card.setAttribute("aria-label", "选择" + (card.querySelector(".art-card-info h3")?.textContent || "实验"));
+  });
+  carouselDots.forEach((dot, dotIndex) => dot.setAttribute("aria-pressed", String(dotIndex === activeCarouselIndex)));
+  const counter = document.querySelector("#carousel-counter");
+  if (counter) counter.textContent = String(activeCarouselIndex + 1).padStart(2, "0") + " / " + String(carouselCards.length).padStart(2, "0");
+  if (manual) {
+    if (carouselTimer) window.clearInterval(carouselTimer);
+    if (carouselResumeTimer) window.clearTimeout(carouselResumeTimer);
+    carouselTimer = null;
+    carouselResumeTimer = window.setTimeout(startCarouselAutoplay, 9000);
+  }
+}
+
+if (carouselCards.length) {
+  carouselCards.forEach((card, index) => {
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      setCarouselCard(index, true);
+    });
+    card.addEventListener("keydown", (event) => {
+      if (event.target !== card || (event.key !== "Enter" && event.key !== " ")) return;
+      event.preventDefault();
+      setCarouselCard(index, true);
+    });
+  });
+  carousel.querySelector("[data-carousel-prev]")?.addEventListener("click", () => setCarouselCard(activeCarouselIndex - 1, true));
+  carousel.querySelector("[data-carousel-next]")?.addEventListener("click", () => setCarouselCard(activeCarouselIndex + 1, true));
+  carouselDots.forEach((dot) => dot.addEventListener("click", () => setCarouselCard(Number(dot.dataset.carouselDot), true)));
+  carousel.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      setCarouselCard(activeCarouselIndex + (event.key === "ArrowRight" ? 1 : -1), true);
+    }
+  });
+  carousel.addEventListener("mouseenter", () => {
+    carouselHovered = true;
+    if (carouselTimer) window.clearInterval(carouselTimer);
+    carouselTimer = null;
+  });
+  carousel.addEventListener("mouseleave", () => {
+    carouselHovered = false;
+    startCarouselAutoplay();
+  });
+  carousel.addEventListener("focusin", () => {
+    carouselHovered = true;
+    if (carouselTimer) window.clearInterval(carouselTimer);
+    carouselTimer = null;
+  });
+  carousel.addEventListener("focusout", (event) => {
+    if (!carousel.contains(event.relatedTarget)) {
+      carouselHovered = false;
+      startCarouselAutoplay();
+    }
+  });
+  let carouselTouchStart = null;
+  carousel.addEventListener("touchstart", (event) => {
+    carouselTouchStart = event.changedTouches[0].clientX;
+  }, { passive: true });
+  carousel.addEventListener("touchend", (event) => {
+    if (carouselTouchStart === null) return;
+    const delta = event.changedTouches[0].clientX - carouselTouchStart;
+    carouselTouchStart = null;
+    if (Math.abs(delta) > 42) setCarouselCard(activeCarouselIndex + (delta < 0 ? 1 : -1), true);
+  }, { passive: true });
+  setCarouselCard(activeCarouselIndex, false);
+  startCarouselAutoplay();
+}
+
+
 document.querySelectorAll("[data-open]").forEach((button) => {
   button.addEventListener("click", () => openModal(button.dataset.open));
 });
@@ -103,6 +209,7 @@ refreshDataArchive();
 
 
 function openModal(id) {
+  stopCarouselAutoplay();
   selected = EXPERIMENTS[id];
   if (!selected) return;
   $("#modal-kicker").textContent = selected.english;
@@ -116,6 +223,7 @@ function openModal(id) {
 
 function closeModal() {
   modal.classList.remove("open");
+  startCarouselAutoplay();
   modal.setAttribute("aria-hidden", "true");
 }
 
@@ -2025,6 +2133,98 @@ async function showPracticeFeedback(correct) {
   return active && epoch === sessionEpoch;
 }
 
+
+function medianResultValue(values) {
+  const sorted = values.filter((value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)))
+    .map(Number).sort((a, b) => a - b);
+  return sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
+}
+
+function correctResultMedian(rows) {
+  return medianResultValue(rows.filter((row) => row.correct === true).map((row) => row.rt_ms));
+}
+
+function resultConditionRow(label, rows, maxRt) {
+  const scoredRows = rows.filter((row) => typeof row.correct === "boolean");
+  const correctCount = scoredRows.filter((row) => row.correct === true).length;
+  const accuracy = scoredRows.length ? correctCount / scoredRows.length * 100 : null;
+  const medianRt = correctResultMedian(rows);
+  const barWidth = medianRt === null || !maxRt ? 0 : Math.max(3, Math.round(medianRt / maxRt * 100));
+  return '<div class="result-condition-row">' +
+    '<div class="result-condition-name"><strong>' + escapeHtml(label) + '</strong><small>' + rows.length + ' 个正式试次</small></div>' +
+    '<div class="result-condition-rt"><div class="result-rt-track"><span style="width:' + barWidth + '%"></span></div><b>' +
+      (medianRt === null ? '—' : Math.round(medianRt) + ' ms') + '</b></div>' +
+    '<span class="result-condition-accuracy">' + (accuracy === null ? '—' : accuracy.toFixed(1) + '%') + '</span>' +
+    '</div>';
+}
+
+function buildResultBreakdownMarkup(rows) {
+  if (selected.id === "posner") {
+    const groups = [];
+    ["外周线索", "中央箭头"].forEach((cueType) => {
+      ["有效", "无效", "中性"].forEach((validity) => {
+        groups.push({
+          label: cueType + " · " + validity,
+          rows: rows.filter((row) => row.cue_type === cueType && row.cue_validity === validity)
+        });
+      });
+    });
+    const present = groups.filter((group) => group.rows.length);
+    const maxRt = Math.max(1, ...present.map((group) => correctResultMedian(group.rows) || 0));
+    return '<section class="result-breakdown"><div class="result-section-heading"><div><span>CONDITION BREAKDOWN</span><h3>不同线索条件下的表现</h3></div>' +
+      '<p>条形表示正确试次的中位反应时；右侧为条件正确率。</p></div><div class="result-condition-list">' +
+      present.map((group) => resultConditionRow(group.label, group.rows, maxRt)).join("") +
+      '</div></section>';
+  }
+
+  if (selected.id === "search") {
+    const groups = [];
+    ["特征搜索", "结合搜索"].forEach((searchType) => {
+      [8, 16, 24].forEach((setSize) => {
+        groups.push({
+          label: searchType + " · " + setSize + " 项",
+          rows: rows.filter((row) => row.search_type === searchType && Number(row.set_size) === setSize)
+        });
+      });
+    });
+    const present = groups.filter((group) => group.rows.length);
+    const maxRt = Math.max(1, ...present.map((group) => correctResultMedian(group.rows) || 0));
+    return '<section class="result-breakdown"><div class="result-section-heading"><div><span>SEARCH CONDITIONS</span><h3>不同搜索条件下的表现</h3></div>' +
+      '<p>比较不同搜索类型与集合大小下的正确反应时和正确率。</p></div><div class="result-condition-list">' +
+      present.map((group) => resultConditionRow(group.label, group.rows, maxRt)).join("") +
+      '</div></section>';
+  }
+
+  if (selected.id === "change") {
+    const outcomes = [
+      { key: "hit", label: "命中", note: "发现真实变化" },
+      { key: "miss", label: "漏报", note: "未发现真实变化" },
+      { key: "false_alarm", label: "虚报", note: "无变化却报告变化" },
+      { key: "correct_rejection", label: "正确拒绝", note: "正确判断无变化" },
+      { key: "timeout", label: "超时", note: "未在时限内作答" }
+    ];
+    const total = rows.length || 1;
+    const outcomeCards = outcomes.map((item) => {
+      const count = rows.filter((row) => row.outcome === item.key).length;
+      const percent = count / total * 100;
+      return '<article class="result-outcome-card"><span>' + item.label + '</span><strong>' + count +
+        '</strong><small>' + percent.toFixed(1) + '% · ' + item.note + '</small><div class="result-meter"><span style="width:' +
+        Math.round(percent) + '%"></span></div></article>';
+    }).join("");
+    const localized = rows.filter((row) => row.change_present === true && row.outcome === "hit" &&
+      typeof row.feature_choice_correct === "boolean");
+    const localizedCorrect = localized.filter((row) => row.feature_choice_correct === true).length;
+    const localizationText = localized.length
+      ? '在成功检测到变化的 ' + localized.length + ' 次试次中，变化部位识别正确率为 ' +
+        (localizedCorrect / localized.length * 100).toFixed(1) + '%。'
+      : '本次没有可用于计算变化部位识别率的成功检测试次。';
+    return '<section class="result-breakdown"><div class="result-section-heading"><div><span>DETECTION OUTCOMES</span><h3>变化检测结果分布</h3></div>' +
+      '<p>各类别数量及其占正式试次的比例。</p></div><div class="result-outcome-grid">' + outcomeCards +
+      '</div><p class="result-breakdown-note">' + localizationText + '</p></section>';
+  }
+  return "";
+}
+
 function finishTask() {
   active = false;
   currentTrialContext = null;
@@ -2033,14 +2233,16 @@ function finishTask() {
   const formalRows = sessionRows.filter((row) => row.phase === "formal");
   const responded = formalRows.filter((row) => row.response_status === "responded");
   const scored = formalRows.filter((row) => typeof row.correct === "boolean");
-  const accuracy = scored.length
-    ? scored.filter((row) => row.correct).length / scored.length * 100
-    : 0;
+  const correctCount = scored.filter((row) => row.correct === true).length;
+  const accuracy = scored.length ? correctCount / scored.length * 100 : 0;
   const correctRts = formalRows
     .filter((row) => row.correct === true && typeof row.rt_ms === "number")
     .map((row) => row.rt_ms)
     .sort((a, b) => a - b);
   const median = correctRts.length ? correctRts[Math.floor(correctRts.length / 2)] : null;
+  const accuracyText = scored.length ? accuracy.toFixed(1) + "%" : "—";
+  const medianText = median === null ? "—" : Math.round(median) + " ms";
+  const accuracyWidth = Math.max(0, Math.min(100, accuracy));
   updateSessionMeta({
     status: "completed",
     completed_at: new Date().toISOString(),
@@ -2052,35 +2254,45 @@ function finishTask() {
   recordEvent("session_completed", { trials_saved: sessionRows.length, gaze_samples_saved: sessionGazeIndex });
   persistSessionGaze();
   flushPendingData();
+
   const storageWarningHtml = sessionWarnings.length
-    ? '<p class="task-muted">注意：本地存储出现问题，建议立即下载本次 CSV 备份。详情：' + escapeHtml(sessionWarnings.join("；")) + '</p>'
+    ? '<p class="result-storage-warning">本地存储出现问题，建议立即下载本次 CSV 备份。详情：' +
+      escapeHtml(sessionWarnings.join("；")) + '</p>'
     : "";
-  const extraSummary = selected.id === "change"
-    ? '<div class="result-line"><span>命中 / 漏报 / 虚报 / 正确拒绝</span><b>' +
-      ["hit", "miss", "false_alarm", "correct_rejection"].map((outcome) =>
-        formalRows.filter((row) => row.outcome === outcome).length
-      ).join(" / ") + '</b></div>'
-    : "";
+  const resultMetrics =
+    '<div class="result-metrics">' +
+      '<article class="result-metric"><div class="result-metric-top"><span>任务正确率</span><span class="result-metric-index">01</span></div>' +
+        '<strong>' + accuracyText + '</strong><div class="result-meter"><span style="width:' + accuracyWidth + '%"></span></div>' +
+        '<small>' + (scored.length ? correctCount + ' / ' + scored.length + ' 个可计分试次正确' : '暂无可计分试次') + '</small></article>' +
+      '<article class="result-metric"><div class="result-metric-top"><span>正确试次中位反应时</span><span class="result-metric-index">02</span></div>' +
+        '<strong>' + medianText + '</strong><small>仅统计正确且记录到反应时的试次</small></article>' +
+      '<article class="result-metric"><div class="result-metric-top"><span>已作答试次</span><span class="result-metric-index">03</span></div>' +
+        '<strong>' + responded.length + ' / ' + formalRows.length + '</strong><small>已作答 / 正式试次</small></article>' +
+    '</div>';
+  const resultMeta =
+    '<div class="result-meta">' +
+      '<span>参与者编号 <b>' + escapeHtml(participant) + '</b></span>' +
+      '<span>眼动追踪 <b>' + (eyeEnabled ? '已启用（探索性）' : '未启用') + '</b></span>' +
+      '<span>眼动样本 <b>' + sessionGaze.length + '</b></span>' +
+    '</div>';
+  const breakdownMarkup = buildResultBreakdownMarkup(formalRows);
+
   panel(
-    "实验完成",
-    '<p>感谢参与！这是你本次的实验结果。</p>' +
-    '<div class="result-box">' +
-    '<div class="result-line"><span>参与者编号</span><b>' + escapeHtml(participant) + '</b></div>' +
-    '<div class="result-line"><span>正式试次数</span><b>' + formalRows.length + '</b></div>' +
-    '<div class="result-line"><span>已作答试次</span><b>' + responded.length + '</b></div>' +
-    '<div class="result-line"><span>正确率</span><b>' + accuracy.toFixed(1) + '%</b></div>' +
-    '<div class="result-line"><span>正确试次中位反应时</span><b>' + (median === null ? "—" : Math.round(median) + " ms") + '</b></div>' +
-    extraSummary +
-    '<div class="result-line"><span>眼动追踪</span><b>' + (eyeEnabled ? "已启用（探索性）" : "未启用") + '</b></div>' +
-    '<div class="result-line"><span>本次眼动样本</span><b>' + sessionGaze.length + '</b></div>' +
-    '</div>' +
-    '<div class="hw2-upload-status" id="hw2-upload-status" role="status" aria-live="polite">正在准备提交至课程收数平台……</div>' +
-    '<p class="task-muted">请等待数据提交完成后再关闭页面。</p>' + storageWarningHtml,
-    '<div class="task-choice"><button class="task-button" id="download-session">下载本次试次 CSV</button>' +
-    '<button class="task-button secondary" id="download-gaze">下载本次眼动 CSV</button>' +
-    '<button class="task-button secondary" id="download-all">下载本机累计数据 CSV</button>' +
-    '<button class="task-button secondary" id="hw2-upload-retry">提交 / 重试上传</button>' +
-    '<button class="task-button secondary" id="finish-close">返回网站</button></div>'
+    "本次探索已完成",
+    '<div class="result-intro"><div class="result-complete-mark">✓</div><div><span>SESSION COMPLETE</span><p>感谢参与。以下是本次任务的描述性结果摘要。</p></div></div>' +
+    resultMetrics +
+    resultMeta +
+    breakdownMarkup +
+    '<div class="result-upload-card"><div class="result-upload-label">数据保存状态<small>本地备份与课程平台提交</small></div>' +
+      '<div class="hw2-upload-status" id="hw2-upload-status" role="status" aria-live="polite">正在准备提交至课程收数平台……</div></div>' +
+    '<p class="result-disclaimer">以上仅为本次任务的描述性摘要，不代表群体常模或诊断结论。完整试次记录仍可下载。</p>' +
+    storageWarningHtml,
+    '<div class="result-actions"><button class="task-button" id="download-session">下载本次试次数据</button>' +
+      '<button class="task-button secondary" id="download-gaze">下载眼动数据</button>' +
+      '<button class="task-button secondary" id="download-all">导出本机累计数据</button>' +
+      '<button class="task-button secondary" id="hw2-upload-retry">重试数据提交</button>' +
+      '<button class="task-button result-return" id="finish-close">返回首页</button></div>',
+    "result-panel"
   );
   $("#download-session").onclick = () => downloadCSV(sessionRows, selected.id + "-" + participant + "-trials.csv");
   $("#download-gaze").onclick = () => {
