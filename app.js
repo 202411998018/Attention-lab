@@ -62,7 +62,6 @@ const FACE_PAIRS = [
 ];
 
 const $ = (selector) => document.querySelector(selector);
-const modal = $("#experiment-modal");
 const taskOverlay = $("#task-overlay");
 const taskStage = $("#task-stage");
 let selected = null;
@@ -131,7 +130,7 @@ function setCarouselCard(index, manual) {
     } else {
       card.classList.add("is-left");
     }
-    card.setAttribute("aria-pressed", String(relative === 0));
+    card.setAttribute("aria-current", String(relative === 0));
     card.setAttribute("aria-label", "选择" + (card.querySelector(".art-card-info h3")?.textContent || "实验"));
   });
   carouselDots.forEach((dot, dotIndex) => dot.setAttribute("aria-pressed", String(dotIndex === activeCarouselIndex)));
@@ -210,9 +209,6 @@ if (carouselCards.length) {
 }
 
 
-document.querySelectorAll("[data-open]").forEach((button) => {
-  button.addEventListener("click", () => openModal(button.dataset.open));
-});
 $("#export-all-backup").onclick = () => exportAllLocalBackup(false);
 $("#export-incomplete-backup").onclick = () => exportAllLocalBackup(true);
 $("#export-trials-csv").onclick = async () => downloadCSV(await getAllLocalRecords("trials"), "attention-lab-trials.csv");
@@ -223,30 +219,6 @@ $("#hw2-retry-pending").onclick = retryPendingHw2Uploads;
 refreshDataArchive();
 
 
-function openModal(id) {
-  stopCarouselAutoplay();
-  selected = EXPERIMENTS[id];
-  if (!selected) return;
-  $("#modal-kicker").textContent = selected.english;
-  $("#modal-title").textContent = selected.name;
-  $("#modal-description").textContent = selected.description;
-  $("#modal-facts").innerHTML = selected.facts.map((item) => "<span>" + escapeHtml(item) + "</span>").join("") +
-    "<span>" + escapeHtml(selected.duration) + "</span>";
-  modal.classList.add("open");
-  modal.setAttribute("aria-hidden", "false");
-}
-
-function closeModal() {
-  modal.classList.remove("open");
-  startCarouselAutoplay();
-  modal.setAttribute("aria-hidden", "true");
-}
-
-$(".modal-close").onclick = closeModal;
-$("#close-modal").onclick = closeModal;
-modal.addEventListener("click", (event) => {
-  if (event.target === modal) closeModal();
-});
 $(".menu-toggle").onclick = () => {
   const nav = $(".main-nav");
   const isOpen = nav.classList.toggle("mobile-open");
@@ -258,20 +230,15 @@ document.querySelectorAll(".main-nav a").forEach((link) => {
     $(".menu-toggle").setAttribute("aria-expanded", "false");
   });
 });
-const startSelectedButton = $("#start-selected-experiment");
-if (startSelectedButton) {
-  startSelectedButton.addEventListener("click", () => {
-    const activeCard = carouselCards[activeCarouselIndex];
-    const experimentId = activeCard && activeCard.dataset.carouselCard;
-    if (!experimentId) return;
+document.querySelectorAll("[data-enter-experiment]").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const experimentId = button.dataset.enterExperiment;
+    if (!experimentId || !EXPERIMENTS[experimentId]) return;
     stopCarouselAutoplay();
     showSetup(experimentId);
   });
-}
-$("#start-experiment").onclick = () => {
-  closeModal();
-  showSetup(selected.id);
-};
+});
 $("#exit-task").onclick = () => {
   if (confirm("确定退出本次实验吗？已完成试次和当前已产生的部分数据都会保留，并将本次 Session 标记为未完成。")) {
     active = false;
@@ -1731,7 +1698,7 @@ async function runPosnerTrial(trial, epoch) {
   currentTrialContext = context;
   const isPractice = phase === "practice";
   taskStage.innerHTML =
-    '<div class="task-panel"><p class="task-muted">請注視中央十字</p>' +
+    '<div class="task-panel"><p class="task-muted">请注视中央十字</p>' +
     '<div class="cue-display"><div class="cue-box" id="posner-left"></div>' +
     '<div class="cue-center" id="posner-center">+</div><div class="cue-box" id="posner-right"></div></div>' +
     '<p class="task-muted">目标出现后按 A（左）或 L（右）</p></div>';
