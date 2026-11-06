@@ -544,3 +544,21 @@ body,button,input,textarea,select{font-family:var(--serif)}
   .card-enter{min-height:27px;padding:5px 8px;font-size:9px}
   .art-card.is-left .card-enter,.art-card.is-right .card-enter{min-height:24px;padding:4px 6px;font-size:8px}
 }
+
+
+/* Explicitly lock experiment-card typography to the same Chinese serif as the page. */
+.art-card-info h3,
+.art-card-info p,
+.art-card-info .art-card-kicker,
+.art-card-info .card-enter,
+.card-enter{
+  font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong","SimSun",serif!important;
+}
+.art-card-info h3{
+  font-weight:700!important;
+  letter-spacing:0!important;
+}
+.art-card-info .card-enter,
+.card-enter{
+  font-weight:600!important;
+}
