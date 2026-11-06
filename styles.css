@@ -414,3 +414,6 @@ body{background:radial-gradient(ellipse at 85% 12%,#e4ecdd 0,transparent 48%),va
 @media(prefers-reduced-motion:reduce){
   .art-card,.art-card-info,.carousel-dots button{transition:none!important}
 }
+
+.task-stage:has(.result-panel){display:block;overscroll-behavior:contain}
+.task-panel.result-panel{margin:18px auto}
