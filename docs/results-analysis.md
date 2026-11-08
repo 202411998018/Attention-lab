@@ -1,84 +1,87 @@
-# 正式统计分析说明
+# 正式统计分析与核查记录（基于 2026-11-08 原始 JSON）
 
-## 数据清理与样本
+## 数据清理
 
-- 原始导出 550 条记录；正式试次 468 条，练习试次 82 条。
-- Posner：192 条正式试次，4 名完成参与者；正确率 190/192 = 98.96%。
-- 视觉搜索：192 条正式试次，4 名完成参与者；正确率 175/192 = 91.15%。
-- 面孔变化检测：84 条正式试次，其中 83 条可计分，67 条正确，计分正确率 80.72%。
-- 所有正式分析排除练习试次；参与者为统计单位，避免 trial-level 伪重复。
-- Posner 有一个错误反应 RT 为 35 ms，排除于 RT 分析但保留在正确率。
-- 面孔变化有一个 no-change 超时；主分析将其单独报告并排除 SDT 分母，敏感性分析将其视为正确拒绝。
+只纳入 `phase=formal` 的已完成试次；练习试次不纳入。RT 分析只使用正确反应。统计推断单位为参与者，先计算参与者内条件均值/斜率，再在参与者间汇总。
 
-## 1. Posner 空间线索
+| 实验 | 正式试次 | 参与者 | 条件结构 |
+|---|---:|---:|---|
+| Posner | 240 | 5 | 2 cue type × 3 validity × 2 SOA；每格 pooled n=20 |
+| 视觉搜索 | 288 | 5 | 2 search type × 3 set size × 2 target presence；每格 pooled n=24 |
+| 面孔变化 | 105 | 5 | 每人16个变化试次（4类×4）+5个无变化试次 |
 
-对每位参与者、线索类型、SOA 和有效性计算正确试次平均 RT。主要效应：
+视觉搜索中 PS4XFC 有两个完整正式 session，其余四人各一个。PS4XFC 的斜率先按 session 分别计算，再在参与者内平均，避免该参与者被双倍计权；重复 session 可能带来练习/疲劳影响。Posner 238/240 正确；视觉搜索 269/288 正确。面孔变化：Hit=59、Miss=21、FA=2、CR=22、Timeout=1。
 
-`Cueing effect = RT_invalid - RT_valid`
+## Posner
 
-正值表示有效线索相对无效线索具有 RT 优势。另计算 valid benefit = RT_neutral − RT_valid、invalid cost = RT_invalid − RT_neutral。
+定义 cueing effect=RT_invalid−RT_valid；valid benefit=RT_neutral−RT_valid；invalid cost=RT_invalid−RT_neutral。正值分别表示有效线索相对无效线索优势、有效线索收益、无效线索代价。
 
-| 线索类型 | SOA | 平均效应 (ms) | 95% t 区间 | exact sign-flip p |
+| Cue | SOA | Cueing M (SD) ms | Valid benefit M (SD) | Invalid cost M (SD) |
 |---|---:|---:|---:|---:|
-| 中央箭头 | 200 ms | 34.12 | [3.14, 65.11] | .125 |
-| 中央箭头 | 600 ms | 58.21 | [−25.91, 142.33] | .250 |
-| 外周线索 | 200 ms | −32.50 | [−150.98, 85.98] | .625 |
-| 外周线索 | 600 ms | 3.56 | [−32.52, 39.65] | .750 |
+| 中央箭头 | 200 | 64.1 (69.0) | 2.4 (36.1) | 61.7 (76.8) |
+| 中央箭头 | 600 | 79.9 (66.7) | 62.9 (66.5) | 17.0 (21.7) |
+| 外周线索 | 200 | −27.5 (65.5) | −25.9 (61.3) | −1.7 (25.3) |
+| 外周线索 | 600 | −7.0 (30.7) | −5.2 (31.8) | −1.9 (20.0) |
 
-跨 SOA 平均：中央箭头 46.2 ms（SD=24.5，95% t 区间 [7.1,85.2]）；外周线索 −14.5 ms（SD=28.5，95% t 区间 [−59.8,30.9]）。
+跨 SOA 后中央箭头 cueing effect=72.0 ms（SD=61.5；95% t CI [−4.4,148.4]）；外周线索=−17.3 ms（SD=25.4；95% t CI [−48.8,14.3]）。中央箭头效应方向五人均为正，但变异较大；外周线索未显示稳定优势。
 
-解释：中央箭头 cueing effect 在四名参与者中方向一致，外周线索则不一致。n=4 时 exact sign-flip 双侧 p 值最小为 .125，不把结果写成强总体推断。
+**经典对照：** Posner（1980）及 Posner、Snyder 与 Davidson（1980）发现空间预期线索可缩短目标检测潜伏期。本实验中央箭头条件方向上与经典结果一致，但小样本、单人每格仅4次，且 SOA 下收益/代价构成不同，不能称为严格复现。
 
-## 2. 视觉搜索斜率
+## 视觉搜索
 
-每位参与者在 search type × target presence 的每个条件下，先计算 set size 8、16、24 的正确 RT 均值，再拟合 Mean RT = intercept + slope × set size。
+每位参与者在正确试次中计算 set size 8、16、24 的条件平均 RT，再拟合 RT=intercept+slope×set size。PS4XFC 两个 session 分别拟合后参与者内平均。
 
-| 搜索类型 | 目标状态 | 平均斜率 (ms/item) | SD | 95% t 区间 |
-|---|---|---:|---:|---:|
-| 特征 | 出现 | 0.49 | 7.05 | [−10.72, 11.71] |
-| 结合 | 出现 | 16.34 | 6.83 | [5.48, 27.21] |
-| 特征 | 缺席 | −0.35 | 7.64 | [−12.50, 11.80] |
-| 结合 | 缺席 | 16.00 | 4.72 | [8.49, 23.52] |
+| 搜索类型 | 目标状态 | 斜率 M (SD), ms/item | 95% t CI |
+|---|---|---:|---:|
+| 特征 | 出现 | −0.28 (6.34) | [−8.15,7.59] |
+| 特征 | 缺席 | 1.78 (8.16) | [−8.35,11.92] |
+| 结合 | 出现 | 18.30 (7.35) | [9.17,27.43] |
+| 结合 | 缺席 | 19.17 (8.17) | [9.02,29.32] |
 
-配对斜率差（结合−特征）：目标出现 15.85 ms/item（95% t 区间 [2.13,29.57]，exact sign-flip p=.125）；目标缺席 16.36 ms/item（95% t 区间 [1.73,30.98]，p=.125）。四名参与者的配对差均为正。
+配对斜率差（结合−特征）：目标出现 18.58 ms/item（SD=9.64；95% t CI [6.61,30.54]）；目标缺席 17.38 ms/item（SD=8.29；95% t CI [7.09,27.67]）。五名参与者差值均为正。
 
-解释：观察模式符合特征整合理论的方向性预测，但 n=4 且每个斜率仅由三个集合大小均值拟合。集合大小 24 时结合搜索目标出现正确率降至 68.8%，需讨论速度—准确率权衡。
+正确率：特征—缺席 68/72=94.4%；特征—出现 69/72=95.8%；结合—缺席 71/72=98.6%；结合—出现 61/72=84.7%。
 
-## 3. 面孔变化检测 SDT
+**经典对照：** Treisman 与 Gelade（1980）的特征整合理论预测，单一特征搜索斜率较平缓，结合搜索随集合大小增加。本数据呈现相同方向；结合搜索目标出现条件正确率较低，需结合速度—准确率权衡解释。斜率仅由三个集合大小估计，样本仍小。
 
-结果计数：Hit=50，Miss=14，False Alarm=2，Correct Rejection=17，Timeout=1。
+## 面孔变化检测：SDT
 
-采用 loglinear 修正：
+Signal=有变化；Noise=无变化。采用 loglinear 修正：
+`H=(Hit+0.5)/(Hit+Miss+1)`
+`FA=(FalseAlarm+0.5)/(FalseAlarm+CR+1)`
+`d′=Z(H)-Z(FA)`；`c=−0.5×[Z(H)+Z(FA)]`。
 
-`H = (hits + 0.5) / (signal responses + 1)`
+五名参与者平均 d′=1.70（SD=0.32；95% t CI [1.30,2.09]）；平均 c=0.22（SD=0.38；95% t CI [−0.25,0.69]）。原始 Hit rate=59/80=73.8%；FA rate=2/25=8.0%。一个 no-change timeout 单独报告并排除于主 SDT 分母。
 
-`FA = (false alarms + 0.5) / (noise responses + 1)`
+| 变化特征 | Hit | n | Hit rate |
+|---|---:|---:|---:|
+| 注视方向 | 20 | 20 | 100% |
+| 嘴角 | 20 | 20 | 100% |
+| 眉毛 | 12 | 20 | 60% |
+| 鼻子 | 7 | 20 | 35% |
 
-`d' = Z(H) - Z(FA)`
+**社会性解释及经典对照：** 注视方向传递他人的注意对象和潜在意图，并能引导观察者的空间注意（Langton, Watt, & Bruce, 2000；Frischen, Bayliss, & Tipper, 2007）。嘴角变化可能携带表情、情绪及互动信息（Jack & Schyns, 2017）。因此，两类变化的高命中率可能部分与社会信息价值/诊断性有关。但这只是候选解释，物理显著性、变化幅度、局部对比度及材料差异也可能造成差异。
 
-`c = -0.5 × [Z(H) + Z(FA)]`
+重要的是，Davies 与 Hoffman（2002）的经典 flicker 研究发现眼部变化比嘴部变化获得更多注意。本实验“注视方向”变化不等同于整块眼部/构形变化，“嘴角”变化也不等同于整块嘴部变化，因此当前排序不是对经典结果的直接复现。Rensink、O’Regan 与 Clark（1997）指出 flicker 中断可妨碍变化前后信息整合，注意和高层兴趣会影响变化识别。当前结果可能反映社会信息价值与局部可辨性共同作用，而非单一机制。
 
-| 参与者 | Hit | Miss | FA | CR | Timeout | d′ | c |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| S06 | 10 | 6 | 0 | 5 | 0 | 1.68 | 0.54 |
-| S02 | 13 | 3 | 0 | 5 | 0 | 2.20 | 0.28 |
-| S03 | 14 | 2 | 1 | 4 | 0 | 1.72 | −0.19 |
-| S07 | 13 | 3 | 1 | 3 | 1 | 1.35 | −0.15 |
+## 图表原则
 
-参与者平均 d′=1.74（SD=0.35，95% t 区间 [1.18,2.30]）；平均 c=0.12（SD=0.35，95% t 区间 [−0.44,0.68]）。把唯一 no-change timeout 视为 CR 后，平均 d′=1.78。
+- Posner：按 cue type × SOA 展示参与者级 cueing effect，并单独呈现 valid benefit / invalid cost。
+- 视觉搜索：RT—set size 条件线、参与者级斜率点图/CI，正确率另列。
+- 面孔变化：四类 hit rate（标明 n=20）、参与者级 d′/c、Hit/FA 计数。
+- n=5 时展示每位参与者数据，不依赖显著性星号。
 
-特征命中率：注视方向 16/16=100%；嘴角 16/16=100%；眉毛 11/16=68.8%；鼻部 7/16=43.8%。每个特征仅 16 个变化试次，且每个特征仅一个基础刺激对，故为探索性描述。成功检测试次中的变化部位定位均正确，但这是以 hit 为条件的定位准确率，不是整体检测敏感性。
+## 局限
 
-## 4. 眼动数据
+样本量为每项5人，刚达到课程门槛；Posner每位参与者每格约4次，视觉搜索每格约4次，斜率仅由3个集合大小估计。面孔变化每类20个信号试次，但材料有限，社会意义与物理显著性未正交操纵。本 JSON 只有 gaze 样本数量元数据，不含逐点 x/y 坐标，因此不绘制真实眼动热力图。
 
-面孔变化任务 trial summary 记录 8,038 个 gaze samples，其中 8,032 个有效（99.93%）；3/4 名参与者启用眼动。原始 x/y 坐标不在 HW2 CSV 中，而保存在采集设备浏览器本地 IndexedDB。因此，不能仅凭当前 trial export 绘制真实面孔热力图。
+## 参考文献
 
-热力图前需导出 gaze.csv、events.csv、sessions.csv、trials.csv；按事件时间对齐 face A / blank / face B，重建刺激在 viewport 中的位置，并审查 calibration/validation 质量。WebGazer 热力图仅为探索性摄像头注视估计，不等价于实验室眼动仪。
-
-## 5. 重要限制
-
-- 每个实验仅 4 名完成参与者；如评分要求至少 5 名其他参与者，当前样本尚差至少 1 名。
-- 如评分要求每个细分条件至少 10 个试次，当前细分条件也可能不足；报告不得声称已满足该要求。
-- n=4 时精确 sign-flip 检验的最小双侧 p 值为 .125；置信区间和参与者差异比显著性标签更有解释价值。
-- 面孔变化特征条件存在刺激材料混淆。
-- 眼动为可选、基于摄像头的估计，必须先检查校准和验证误差再解释 AOI。
+- Posner, M. I. (1980). Orienting of attention. *Quarterly Journal of Experimental Psychology*, 32(1), 3–25. https://doi.org/10.1080/00335558008248231
+- Posner, M. I., Snyder, C. R. R., & Davidson, B. J. (1980). Attention and the detection of signals. *Journal of Experimental Psychology: General*, 109(2), 160–174. https://pubmed.ncbi.nlm.nih.gov/7381367/
+- Treisman, A. M., & Gelade, G. (1980). A feature-integration theory of attention. *Cognitive Psychology*, 12(1), 97–136. https://doi.org/10.1016/0010-0285(80)90005-5
+- Rensink, R. A., O’Regan, J. K., & Clark, J. J. (1997). To see or not to see: The need for attention to perceive changes in scenes. *Psychological Science*, 8(5), 368–373. https://doi.org/10.1111/j.1467-9280.1997.tb00427.x
+- Davies, T. N., & Hoffman, D. D. (2002). Attention to faces: A change-blindness study. *Perception*, 31(9), 1123–1146. https://doi.org/10.1068/p3391
+- Langton, S. R. H., Watt, R. J., & Bruce, V. (2000). Do the eyes have it? Cues to the direction of social attention. *Trends in Cognitive Sciences*, 4(2), 50–59. https://doi.org/10.1016/S1364-6613(99)01436-9
+- Frischen, A., Bayliss, A. P., & Tipper, S. P. (2007). Gaze cueing of attention. *Psychological Bulletin*, 133(4), 694–724. https://doi.org/10.1037/0033-2909.133.4.694
+- Jack, R. E., & Schyns, P. G. (2017). Toward a social psychophysics of face communication. *Annual Review of Psychology*, 68, 269–297. https://doi.org/10.1146/annurev-psych-010416-044242
