@@ -10,7 +10,7 @@
 | 视觉搜索 | 288 | 5 | 2 search type × 3 set size × 2 target presence；每格 pooled n=24 |
 | 面孔变化 | 105 | 5 | 每人16个变化试次（4类×4）+5个无变化试次 |
 
-视觉搜索中 PS4XFC 有两个完整正式 session，其余四人各一个。PS4XFC 的斜率先按 session 分别计算，再在参与者内平均，避免该参与者被双倍计权；重复 session 可能带来练习/疲劳影响。Posner 238/240 正确；视觉搜索 269/288 正确。面孔变化：Hit=59、Miss=21、FA=2、CR=22、Timeout=1。
+视觉搜索中 一名参与者 有两个完整正式 session，其余四人各一个。一名参与者 的斜率先按 session 分别计算，再在参与者内平均，避免该参与者被双倍计权；重复 session 可能带来练习/疲劳影响。Posner 238/240 正确；视觉搜索 269/288 正确。面孔变化：Hit=59、Miss=21、FA=2、CR=22、Timeout=1。
 
 ## Posner
 
@@ -29,7 +29,7 @@
 
 ## 视觉搜索
 
-每位参与者在正确试次中计算 set size 8、16、24 的条件平均 RT，再拟合 RT=intercept+slope×set size。PS4XFC 两个 session 分别拟合后参与者内平均。
+每位参与者在正确试次中计算 set size 8、16、24 的条件平均 RT，再拟合 RT=intercept+slope×set size。一名参与者 两个 session 分别拟合后参与者内平均。
 
 | 搜索类型 | 目标状态 | 斜率 M (SD), ms/item | 95% t CI |
 |---|---|---:|---:|
