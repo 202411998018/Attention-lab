@@ -2326,6 +2326,7 @@ function finishTask() {
     resultMetrics +
     resultMeta +
     breakdownMarkup +
+    '<section class="result-breakdown result-analysis-link"><div class="result-section-heading"><div><span>FORMAL GROUP ANALYSIS</span><h3>查看三个实验的正式统计结果</h3></div><p>本页是当前参与者的个人结果；完整样本的线索效应、搜索斜率与 SDT 分析请查看汇总报告。</p></div><p><a href="results.html" target="_blank" rel="noopener">打开正式统计结果与研究解释 ↗</a></p></section>' +
     '<div class="result-upload-card"><div class="result-upload-label">数据保存状态<small>本地备份与课程平台提交</small></div>' +
       '<div class="hw2-upload-status" id="hw2-upload-status" role="status" aria-live="polite">正在准备提交至课程收数平台……</div></div>' +
     '<p class="result-disclaimer">以上仅为本次任务的描述性摘要，不代表群体常模或诊断结论。完整试次记录仍可下载。</p>' +
