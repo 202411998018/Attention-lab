@@ -1,58 +1,75 @@
-Website: https://202411998018.github.io/Attention-lab/
+Website: https://202411998018.github.io/Attention-lab/  
+**正式统计结果：** https://202411998018.github.io/Attention-lab/results.html
 
-# Attention Lab
+# Attention Lab｜注意力实验平台
 
-**看见注意力，理解认知。**  
-An interactive cognitive science laboratory for exploring visual attention.
+**看见注意力，理解认知。** Attention Lab 是一个面向工程心理学课程的交互式注意实验平台，包含空间线索（Posner）、视觉搜索、面孔变化检测三个实验。网站支持匿名参与者编号、练习与正式试次、反应时和正确率记录、眼动自愿启用、本地数据备份及课程 HW2 数据提交。
 
-Attention Lab is a browser-based educational platform featuring three classic attention paradigms:
+## 一、理论基础与实验假设
 
-- **Posner Spatial Cueing** — spatial orienting and cue validity.
-- **Face Flicker Change Detection** — face-feature change detection using a flicker-style task.
-- **Visual Search / Feature Integration** — feature and conjunction search across set sizes.
+| 实验 | 理论基础 | 核心问题 | 主要预测 |
+|---|---|---|---|
+| 空间线索（Posner） | 注意定向与线索有效性（Posner, 1980） | 有效、无效和中性线索是否改变目标检测速度？ | 有效线索反应更快；无效线索产生代价；中央箭头与外周线索可能呈现不同时间过程。 |
+| 视觉搜索 | 特征整合理论（Treisman & Gelade, 1980） | 集合大小增加时，特征搜索与结合搜索的反应时如何变化？ | 特征搜索斜率较平缓；结合搜索斜率更陡。 |
+| 面孔变化检测 | 变化盲视与视觉注意（Rensink et al., 1997） | 面孔局部特征变化是否容易被发现？ | 变化检测受特征类型影响；以信号检测论区分敏感性与反应偏向。 |
 
-The site includes participant setup, shortened practice and formal trials, task-specific keyboard responses (A/L for Posner, F/J for visual search and face-change detection), balanced condition generation, irregular randomized visual-search layouts, response-time and accuracy recording, IndexedDB-backed local session/trial/gaze/event persistence, submission of standardized trial JSON to the course HW2 endpoint, upload status and manual retry, a local data archive, and CSV/JSON export.
+## 二、实验设计与改进
 
-## Run locally
+- **Posner：** 比较外周线索与中央箭头，设置有效、无效、中性线索及不同 SOA；记录目标判断正确率与反应时。
+- **视觉搜索：** 比较特征搜索和结合搜索，集合大小为 8、16、24；目标出现与缺席条件均纳入分析。
+- **面孔变化检测：** 使用统一风格的面孔 SVG 刺激，改变注视方向、嘴角、眉毛和鼻部特征；记录命中、漏报、虚报、正确拒绝及变化部位判断。
+- **数据质量与隐私：** 练习试次不进入正式分析；使用匿名编号；眼动需要参与者主动同意；摄像头视频不录制、不上传，原始注视坐标保存在本地。
 
-No build step is required. Open `index.html` in a modern browser, or serve the folder with a local static server:
+## 三、正式数据与统计分析
+
+本次导出数据共包含 **550 条试次记录**，其中 **468 条正式试次**。三个实验各有 4 名完成参与者。正式分析以参与者为统计单位，避免将同一参与者的多次试次当成独立样本。
+
+| 实验 | 正式试次 | 完成参与者 | 本次主要分析 |
+|---|---:|---:|---|
+| Posner | 192 | 4 | 有效/无效线索效应、SOA、外周与中央线索比较 |
+| 视觉搜索 | 192 | 4 | 8/16/24 项的反应时搜索斜率、特征与结合搜索比较 |
+| 面孔变化检测 | 84 | 4 | 命中/漏报/虚报/正确拒绝、d′、criterion c、特征命中率 |
+
+### 主要结果
+
+- **Posner：** 中央箭头线索的跨 SOA 平均无效−有效反应时差为 **46.2 ms**；外周线索为 **−14.5 ms**。中央箭头呈现较一致的有效线索优势，外周线索效应则不稳定。
+- **视觉搜索：** 结合搜索平均斜率约为 **16 ms/item**，特征搜索平均斜率接近 0；四名参与者均表现出结合搜索斜率高于特征搜索的模式。
+- **面孔变化检测：** 参与者平均敏感性 **d′ = 1.74**（SD = 0.35；95% t 区间 [1.18, 2.30]），平均反应标准 **c = 0.12**。注视方向和嘴角变化命中率均为 100%，眉毛为 68.8%，鼻部为 43.8%。
+
+完整统计口径、参与者层级结果、置信区间、图表与限制见 [正式统计结果页](results.html) 和 [分析说明](docs/results-analysis.md)。
+
+> **样本量说明：** 当前分析数据每个实验有 4 名完成参与者。若课程评分要求每个实验至少 5 名其他参与者，当前数据尚差至少 1 名；若要求每个细分条件至少 10 个试次，现有设计中的部分细分条件也未达到。这里如实报告现有数据，不将小样本结果表述为已满足该要求，也不以试次层面的伪重复替代参与者样本量。
+
+## 四、运行与复现
+
+无需构建工具。在项目根目录运行：
 
 ```bash
 python -m http.server 8000
 ```
 
-Then visit http://localhost:8000.
+浏览器访问 `http://localhost:8000`。也可以直接通过页面顶部的 GitHub Pages 链接访问。
 
-## Notes
+主要文件：
+- `index.html`：网站首页与实验入口
+- `results.html`：正式统计结果、图表和研究解释
+- `app.js`：实验流程、试次记录、个人结果页与数据导出
+- `styles.css`：页面样式与响应式布局
+- `hw2-config.js`：课程 HW2 项目编号与提交端点（不含下载密钥）
+- `eye-tracking.js`：自愿启用的 WebGazer 加载器
+- `assets/face-change-stimuli/`：面孔变化检测 SVG 刺激
+- `docs/experiment-design.md`：实验设计、理论依据与假设
+- `docs/results-analysis.md`：正式统计口径、结果与限制
 
-- This is an initial educational prototype. Validate timing and stimulus presentation on the actual testing devices before collecting formal research data.
-- Webcam eye tracking lazily loads the pinned WebGazer 3.5.3 browser build from jsDelivr only after opt-in. It is optional and requires a secure HTTPS page, a compatible browser, a webcam, and an internet connection to load the library. Camera video is processed in the browser and is not recorded or uploaded. Raw gaze coordinates are retained in the local IndexedDB/localStorage archive and are not sent to HW2; trial-level gaze sample counts remain part of the trial summary. The workflow includes 9-point calibration (5 clicks per point) and a separate 5-point validation report. Validation metrics are exploratory and have no universal pass threshold. The WebGazer bundle's Face Mesh runtime assets are also pinned to `@mediapipe/face_mesh@0.4.1633559619` and loaded from jsDelivr (Apache-2.0; see [MediaPipe license](https://github.com/google-ai-edge/mediapipe/blob/master/LICENSE)). WebGazer is GPL-3.0-or-later; see [its license](https://github.com/brownhci/WebGazer/blob/master/LICENSE.md). Official maintenance ended on February 24, 2026, so pinning the version avoids silent updates.
-- Trial data is submitted to the course HW2 endpoint after a session is completed or the participant exits; a local IndexedDB/localStorage backup is retained. Raw gaze samples and full event logs remain local because the course example only documents a `trials` array. Configure the six-character project code in `hw2-config.js`; never put the download key in frontend code. Do not enter names, student IDs, or other direct identifiers.
-- Demo/example values are not real participant data.
+## 五、数据隐私与使用说明
 
-## Project structure
+1. 不要在公开仓库中提交原始参与者数据、姓名、学号、下载密钥或摄像头视频。
+2. HW2 项目编号不是下载密钥；下载密钥仅用于授权的数据下载，不应写入前端代码。
+3. 原始眼动坐标保存在采集设备的浏览器本地存储中。公开结果只呈现汇总统计与匿名参与者编号。
+4. WebGazer 是基于摄像头的注视位置估计工具，不等同于实验室级眼动仪。眼动热力图须在导出原始坐标、核对时间戳和刺激位置、检查校准质量后才能解释。
 
-- `index.html` — page structure and content
-- `styles.css` — visual system and responsive layouts
-- `app.js` — navigation, experiment flows, trial logging, HW2 submission, local backup, summaries, and CSV export
-- `hw2-config.js` — course HW2 project code and endpoint configuration (no download key)
-- `eye-tracking.js` — optional consent-only WebGazer 3.5.3 loader
-- `docs/experiment-design.md` — task rationale, conditions, and hypotheses
-
-## Experiments
-
-See [Experiment design](docs/experiment-design.md) for a concise description of the paradigms and proposed modifications.
-
-## References
+## 参考文献
 
 - Posner, M. I. (1980). Orienting of attention. *Quarterly Journal of Experimental Psychology*, 32(1), 3–25.
 - Treisman, A. M., & Gelade, G. (1980). A feature-integration theory of attention. *Cognitive Psychology*, 12(1), 97–136.
 - Rensink, R. A., O'Regan, J. K., & Clark, J. J. (1997). To see or not to see: The need for attention to perceive changes in scenes. *Psychological Science*, 8(5), 368–373.
-
-## Next steps
-
-1. Validate trial timing and condition balance.
-2. Pilot each task with a small number of participants.
-3. Pilot the consent-only WebGazer integration on real cameras; check calibration, validation, sample logging and data export.
-4. Configure a test project code in `hw2-config.js` and verify one test submission and the downloaded records in the course HW2 dashboard.
-5. Preregister hypotheses, exclusions, and analysis decisions before formal data collection.
